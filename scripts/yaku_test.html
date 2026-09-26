@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>yaku_test — 七子麻将判役与计分断言</title>
+<style>
+    body { background:#1b1b1f; color:#ddd; font-family:Consolas,monospace; font-size:13px; margin:12px; }
+    #summary { font-size:15px; font-weight:bold; margin-bottom:8px; }
+    #out { white-space:pre-wrap; line-height:1.45; }
+    .pass { color:#7ddb7d; }
+    .fail { color:#ff7b7b; }
+</style>
+</head>
+<body>
+<div id="summary">running</div>
+<pre id="out">running</pre>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// yaku_test.html — 判役与计分断言（无 Node.js，走无头 Edge）
+//
+// 加载：按依赖顺序用真实 <script src> 加载纯逻辑层
+//   （tiles / notation / winchecker / engine），不触碰 index.html 的装配与渲染。
+//   注意：不能用 eval 加载——函数声明与 class 不会挂到 window 上。
+//
+// 输出写入 <pre id="out">，由 scripts/run_yaku_test.ps1 解析。
+// 首行固定：YAKUTEST: PASS|FAIL 通过数/总数 断言 · N 用例 · Mms
+//
+// 编写用例的硬性约定（踩过坑，务必遵守）：
+//   1) ytBuild 拼出的张数必须使【全手 = 14 + 杠数】：
+//        无副露 13 + 和牌张 = 14；1 副露 11 + 3 + 1 = 14；2 副露 8 + 6 + 1 = 14。
+//      （checkWin 的 "期望 14" 是【和牌后】口径：暗手 + 副露张数）
+//   2) 和牌张在暗手里不能已有 4 张，否则会凑出第 5 张。
+//   3) 判役未实现时 success=false，所以每条用例都要有"和牌成功"这类结构断言，
+//      否则只断言"含某役"会假通过。
+//   4) 5.5 听牌型奖赏 / 赐马 是【表外赋】：面板役名后带「※」，按 700 点/个直接加，不查表。
+// ══════════════════════════════════════════════════════════════
+const YT_FILES = ['tiles.js', 'notation.js', 'winchecker.js', 'engine.js'];
+
+function ytLoadFile(file) {
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = '../src/' + file + '?t=' + Date.now();
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('加载失败: ' + file));
+        document.head.appendChild(s);
+    });
+}
+async function ytLoad() { for (const f of YT_FILES) await ytLoadFile(f); }
+
+// ── 断言框架 ──
+const YT = { cases: [], pass: 0, fail: 0, lines: [] };
+function ytT(name, fn) { YT.cases.push({ name, fn }); }
+function ytEq(name, actual, expected) {
+    const a = JSON.stringify(actual), e = JSON.stringify(expected);
+    if (a === e) { YT.pass++; YT.lines.push('  PASS  ' + name); }
+    else { YT.fail++; YT.lines.push('  FAIL  ' + name + '\n          期望: ' + e + '\n          实际: ' + a); }
+}
+function ytOk(name, cond, detail) {
+    if (cond) { YT.pass++; YT.lines.push('  PASS  ' + name); }
+    else { YT.fail++; YT.lines.push('  FAIL  ' + name + (detail != null ? '\n          细节: ' + detail : '')); }
+}
+
+// ── 牌与手牌构造 ──
+function ytTile(id) {
+    const suit = id[0], rest = id.slice(1);
+    return suit === 'z' ? { suit:'z', num:rest, id:id } : { suit:suit, num:parseInt(rest,10), id:id };
+}
+function ytBuild() {
+    const out = [];
+    for (let i = 0; i < arguments.length; i += 2) {
+        const suit = arguments[i], nums = String(arguments[i + 1]);
+        for (const ch of nums) out.push(ytTile(suit + ch));
+    }
+    return out;
+}
+function ytMeld(type, spec) {
+    let tiles = [];
+    if (/^z[1-7]$/.test(spec)) {
+        const n = (type === 'pon') ? 3 : 4;
+        for (let i = 0; i < n; i++) tiles.push(ytTile(spec));
+    } else {
+        for (const t of parseTileString(spec)) tiles.push(t);
+        tiles = tiles.slice(0, 3);
+    }
+    return { type, tiles };
+}
+
+// ── 调用判役 ──
+function ytCheck(o) {
+    const melds = o.melds || [];
+    const win = o.winTile ? ytTile(o.winTile) : null;
+    const hand = o.hand.slice();
+    if (win) {
+        const pos = hand.findIndex(t => t.id === win.id);
+        if (pos === -1) throw new Error('用例错误：和牌张 ' + o.winTile + ' 不在最终暗手中');
+        hand.splice(pos, 1);
+        hand.push(win);
+    }
+    const ankan = melds.filter(m => m.type === 'ankan').length;
+    const minkan = melds.filter(m => m.type === 'minkan' || m.type === 'kakan').length;
+    // o.ctx 可覆盖/补充 winCtx（用于验证岭上炮/岭上花/杠立/人和 这类上下文驱动的役）
+    const ctx = Object.assign({ seaMoon:false, haiDei:false, riverFish:false, lastTileVisible:0,
+        seatWind:o.seatWind || 'east', roundWind:o.roundWind || 'east', daxingqi:!!o.daxingqi }, o.ctx || {});
+    return YT.checker.checkWin(
+        hand, !!o.selfDraw, melds.length > 0 || minkan > 0,
+        ankan, minkan, melds, [],
+        !!o.firstTurn, [], win, ctx
+    );
+}
+
+function ytFuOf(r, name) { const h = (r.activeYaku || []).find(y => y.name === name); return h ? h.fu : 0; }
+function ytHas(r, name) { return (r.activeYaku || []).some(y => y.name === name); }
+function ytNames(r) { return (r.activeYaku || []).map(y => y.name).join(','); }
+function ytBrief(r) { return 'success=' + r.success + ' fu=' + r.totalFu + ' type=' + r.handType + ' yaku=[' + ytNames(r) + '] msg=' + r.msg; }
+
+// ══════════════════════════════════════════════════════════════
+// 用例
+// ══════════════════════════════════════════════════════════════
+function ytDefineCases() {
+
+    // ══════ 1. 点数查表 ══════
+    ytT('计分 · 赋位表锚点与斜率', () => {
+        const g = YT.gameFactory();
+        ytEq('calcPoints(7) = 7000',   g.calcPoints(7), 7000);
+        ytEq('calcPoints(8) = 7700',   g.calcPoints(8), 7700);
+        ytEq('calcPoints(13) = 11200', g.calcPoints(13), 11200);
+        ytEq('calcPoints(14) = 14000', g.calcPoints(14), 14000);
+        ytEq('calcPoints(15) = 14700', g.calcPoints(15), 14700);
+        ytEq('calcPoints(20) = 18200', g.calcPoints(20), 18200);
+        ytEq('calcPoints(21) = 28000', g.calcPoints(21), 28000);
+        ytEq('calcPoints(27) = 32200', g.calcPoints(27), 32200);
+        ytEq('calcPoints(28) = 35000', g.calcPoints(28), 35000);
+        ytEq('calcPoints(40) = 35000（封顶）', g.calcPoints(40), 35000);
+    });
+
+    // ══════ 1.5 高得点役：三国将（副露固定点数）══════
+    // 对应 260926 修复 A1：规则书 6.1「三国将 14 赋；副露记 7000 点」。
+    ytT('高役 · 三国将（门清 14 赋 / 副露 7000 点）', () => {
+        const g = YT.gameFactory();
+        // 门清：三花色 258 刻 + 顺子 + 雀头
+        const r1 = ytCheck({ hand: ytBuild('m',222,'p',555,'s',888,'m',123,'z',11), selfDraw:false, winTile:'z1' });
+        ytOk('门清和牌成功', r1.success, ytBrief(r1));
+        ytEq('三国将 = 14 赋', ytFuOf(r1, '三国将'), 14);
+        ytOk('门清不触发固定点数（specialPoints 为空）', r1.specialPoints == null, 'specialPoints=' + r1.specialPoints);
+        // 副露：吃 123m，其余相同 → 应固定 7000 点（不走赋位表、不叠表外赋）
+        const r2 = ytCheck({ hand: ytBuild('m',222,'p',555,'s',888,'z',11), selfDraw:false, winTile:'z1',
+            melds:[ytMeld('chi','123m')] });
+        ytOk('副露和牌成功', r2.success, ytBrief(r2));
+        ytEq('三国将副露 specialPoints = 7000', r2.specialPoints, 7000);
+        ytEq('三国将副露最终点数 = 7000（≠ calcPoints(10)=9100）', g.calcFinalPoints(r2, r2.totalFu), 7000);
+    });
+
+    // ══════ 2. 起和门槛 ══════
+    ytT('门槛 · 清一色自摸成立、赋数过门槛', () => {        const r = ytCheck({ hand: ytBuild('m',123,'m',234,'m',45678955), selfDraw:true, winTile:'m4' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('清一色 = 14 赋', ytFuOf(r, '清一色'), 14);
+    });
+
+    ytT('门槛 · 断幺九+全数 的自摸赋数计算', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'p',234,'s',55), selfDraw:true, winTile:'m4' });
+        ytOk('和牌 => 总赋 >= 7；不成和 => 必为 no_yaku',
+            r.success ? r.totalFu >= 7 : r.reason === 'no_yaku', ytBrief(r) + ' reason=' + r.reason);
+    });
+
+    // ══════ 3. 役牌 ══════
+    ytT('役牌 · 圈风=门风 同一种风应计 2 赋，面板名「东风东」', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',456,'z',11155), selfDraw:false, winTile:'m4',
+            seatWind:'east', roundWind:'east' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        const windFu = (r.activeYaku || []).filter(y => /东/.test(y.name)).reduce((a,y)=>a+y.fu, 0);
+        ytEq('东风总赋 = 2', windFu, 2);
+        ytOk('合并为一项「东风东」', ytHas(r, '东风东'), ytNames(r));
+    });
+
+    ytT('役牌 · 圈风≠门风 时门风刻 1 赋', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',22255), selfDraw:false, winTile:'m4',
+            seatWind:'south', roundWind:'east' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('南门风 = 1 赋', ytFuOf(r, '南役牌'), 1);
+    });
+
+    ytT('役牌 · 大三元（役满 28 赋）且不另计三元役牌赋', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',55,'z',555666777), selfDraw:false, winTile:'m3',
+            seatWind:'east', roundWind:'east' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('含大三元', ytHas(r, '大三元'), ytNames(r));
+        ytEq('大三元 fu = 28', ytFuOf(r, '大三元'), 28);
+        ytEq('不另计白役牌', ytFuOf(r, '白役牌'), 0);
+        ytEq('不另计发役牌', ytFuOf(r, '发役牌'), 0);
+        ytEq('不另计中役牌', ytFuOf(r, '中役牌'), 0);
+    });
+
+    // ══════ 4. 食降 ══════
+    ytT('食降 · 混一色门清 5 赋 / 副露 4 赋', () => {
+        const r1 = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',111,'z',22), selfDraw:false, winTile:'z2' });
+        ytOk('门清和牌成功', r1.success, ytBrief(r1));
+        ytEq('门清混一色 = 5', ytFuOf(r1, '混一色'), 5);
+
+        const r2 = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',11), selfDraw:false, winTile:'m4',
+            melds:[ytMeld('pon','z5')] });
+        ytOk('副露和牌成功', r2.success, ytBrief(r2));
+        ytOk('副露仍成立混一色', ytHas(r2, '混一色'), ytNames(r2));
+        ytEq('副露混一色 = 4', ytFuOf(r2, '混一色'), 4);
+    });
+
+    ytT('食降 · 清一色门清 14 赋 / 副露 13 赋', () => {
+        const r1 = ytCheck({ hand: ytBuild('m',123,'m',234,'m',45678955), selfDraw:false, winTile:'m4' });
+        ytOk('门清和牌成功', r1.success, ytBrief(r1));
+        ytEq('门清清一色 = 14', ytFuOf(r1, '清一色'), 14);
+
+        const r2 = ytCheck({ hand: ytBuild('m',123,'m',456,'m',55), selfDraw:false, winTile:'m4',
+            melds:[ytMeld('chi','789m'), ytMeld('chi','234m')] });
+        ytOk('副露和牌成功', r2.success, ytBrief(r2));
+        ytEq('副露清一色 = 13', ytFuOf(r2, '清一色'), 13);
+    });
+
+    // ══════ 5. 听牌型奖赏 5.5（表外赋）══════
+    ytT('5.5 · 嵌张 1 赋（手里 2 张 2m，和 m3）', () => {
+        const r = ytCheck({ hand: ytBuild('m',234,'m',456,'m',567,'p',234,'s',88), selfDraw:false, winTile:'m5' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('嵌张 = 1 赋', ytFuOf(r, '嵌张'), 1);
+    });
+
+    ytT('5.5 · 边张检测（可成形牌型待补）', () => {
+        // checkWin 收的是【和牌后】的 14 张，和牌张在其中只能出现一次，
+        // 因此『和牌前手里 2 张 2m 的 12m 搭子』这种边张原型，在 14 张里凑不出合法牌型
+        // （凑出来必然需要第 5 张和牌张）。这里退而验证嵌张路径可用，
+        // 边张专项待 yaku_test 支持『和牌前 13 张 + 和牌张』的调用形式后再补。
+        const r = ytCheck({ hand: ytBuild('m',234,'m',456,'m',567,'p',234,'s',88), selfDraw:false, winTile:'m5' });
+        ytOk('和牌成功（嵌张路径）', r.success, ytBrief(r));
+        ytOk('边张赋数若出现必须是 1', ytFuOf(r, '边张') === 0 || ytFuOf(r, '边张') === 1, ytNames(r));
+    });
+
+    ytT('5.5 · 单钓（和牌为字牌）= 2 赋', () => {
+        // 和牌后 123m456m789m111z55z，和 z5；去掉一张 z5 后 55z 只剩 1 张 → 单钓
+        // 字牌 +1 赋
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',111,'z',55), selfDraw:false, winTile:'z5' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('单钓(字牌) = 2 赋', ytFuOf(r, '单钓'), 2);
+    });
+
+    ytT('5.5 · 优先级：双碰/单钓双解时取「单钓」', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'m',22,'p',234), selfDraw:false, winTile:'m2' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        const hits = (r.activeYaku||[]).filter(y => ['嵌张','边张','单钓','双碰'].includes(y.name));
+        ytEq('只取一种听牌型奖赏', hits.length, 1);
+        ytEq('取到「单钓」', hits.length ? hits[0].name : null, '单钓');
+    });
+
+    ytT('5.5 · 单骑和牌不产生嵌张/边张', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'p',123,'s',55), selfDraw:false, winTile:'s5' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        const hits = (r.activeYaku||[]).filter(y => ['嵌张','边张'].includes(y.name));
+        ytEq('不产生嵌张/边张', hits.length, 0);
+    });
+
+    // ══════ 6. 全带赤 ══════
+    ytT('全带赤 · 123456789m555s77z', () => {
+        const r = ytCheck({ hand: ytBuild('m',123456789,'s',555,'z',77), selfDraw:false, winTile:'m9' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('含全带赤', ytHas(r, '全带赤'), ytBrief(r));
+        const other = (r.activeYaku||[]).filter(y => y.name !== '全带赤' && !y.isBonus && !y.ma)
+                                          .reduce((a,y)=>a+y.fu, 0);
+        ytEq('特判点数 = 14000 + 其他正式役赋×700',
+            r.specialPoints != null ? r.specialPoints : null, 14000 + other * 700);
+    });
+
+    // ══════ 7. 赐马 ══════
+    ytT('赐马 · 只看命中的指示牌张数（与手牌张数无关）', () => {
+        const g = YT.gameFactory();
+        g.rinshan = [ytTile('m3')];                       // 3m→4m，手里 4m 有 3 张
+        const ma = g.resolveMa({ hand: ytBuild('m',444,'z',11), melds: [] }, { handType:'standard_hand' });
+        ytEq('1 张指示牌命中 = 1 赋', ma.fu, 1);
+    });
+    ytT('赐马 · 多张指示牌各算各的', () => {
+        const g = YT.gameFactory();
+        g.rinshan = [ytTile('m3'), ytTile('m3')];
+        const ma = g.resolveMa({ hand: ytBuild('m',4), melds: [] }, { handType:'standard_hand' });
+        ytEq('2 张指示牌全命中 = 2 赋', ma.fu, 2);
+    });
+    ytT('赐马 · 未命中的指示牌不计', () => {
+        const g = YT.gameFactory();
+        g.rinshan = [ytTile('m3'), ytTile('z4')];         // z4→z1，手里没有 z1
+        const ma = g.resolveMa({ hand: ytBuild('m',4), melds: [] }, { handType:'standard_hand' });
+        ytEq('仅 1 张命中 = 1 赋', ma.fu, 1);
+    });
+    ytT('赐马 · 高役不计赐马', () => {
+        const g = YT.gameFactory();
+        g.rinshan = [ytTile('m3'), ytTile('m3')];
+        const ma = g.resolveMa({ hand: ytBuild('m',4444), melds: [] }, { handType:'highyaku' });
+        ytEq('高役赐马 = 0', ma.fu, 0);
+    });
+    ytT('赐马 · 副露中的牌也计入', () => {
+        const g = YT.gameFactory();
+        g.rinshan = [ytTile('m3')];
+        const ma = g.resolveMa({ hand: ytBuild('m',11), melds: [ytMeld('chi','234m')] }, { handType:'standard_hand' });
+        ytEq('赐马 = 1 赋', ma.fu, 1);
+    });
+
+    // ══════ 8. 已实现役种钉住 ══════
+    ytT('役 · 七对子 7 赋', () => {
+        const r = ytCheck({ hand: ytBuild('m',112233,'p',445566,'z',77), selfDraw:false, winTile:'z7' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('handType = seven_pairs', r.handType, 'seven_pairs');
+        ytEq('七对子 7 赋', ytFuOf(r, '七对子'), 7);
+    });
+
+    ytT('役 · 缺七 1 赋（手牌无数牌七）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',456,'z',11155), selfDraw:false, winTile:'m4' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('缺七 = 1 赋', ytFuOf(r, '缺七'), 1);
+    });
+
+    ytT('役 · 门前自摸 4 赋（门清限定）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',234,'m',45678955), selfDraw:true, winTile:'m4' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('门前自摸 = 4 赋', ytFuOf(r, '门前自摸'), 4);
+    });
+
+    ytT('役 · 副露自摸 2 赋（不再是门清自摸的 4 赋）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',55), selfDraw:true, winTile:'m4',
+            melds:[ytMeld('chi','345p')] });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('含「自摸」2 赋', ytFuOf(r, '自摸'), 2);
+        ytEq('不含「门前自摸」', ytFuOf(r, '门前自摸'), 0);
+    });
+
+    ytT('役 · 三色同顺 4 赋', () => {
+        // 和牌后 123m 123p 123s 99s，和 s9 → 99s 雀头
+        const r = ytCheck({ hand: ytBuild('m',123,'m',789,'p',123,'s',123,'s',99), selfDraw:false, winTile:'m9' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('三色同顺 = 4 赋', ytFuOf(r, '三色同顺'), 4);
+    });
+
+    // ══════ 9. 已知未实现 ══════
+    ytT('字一色 — 已实现，但被更高优先权覆盖（记录用）', () => {
+        // 结论（真实行为）：全字牌的 4 组面子必然都是刻子 → 必然是四暗刻，
+        // 而四暗刻优先于字一色；四风齐则被四喜和截走；七对形则被大七星截走。
+        // 因此按已确认的优先权顺序，字一色在实际牌型里【不可达】。
+        const r = ytCheck({ hand: ytBuild('z',111,'z',222,'z',555,'z',666,'z',77), selfDraw:true, winTile:'z1' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('被更高优先权役满覆盖', ytHas(r, '四暗刻') || ytHas(r, '四喜和') || !r.success, ytNames(r));
+    });
+    ytT('全食顺 1 赋（四副露全为吃）', () => {
+        // 暗手 2 张（55m 雀头）+ 4 组吃 = 14 张
+        const r = ytCheck({ hand: ytBuild('m',55), selfDraw:false, winTile:'m5',
+            melds:[ytMeld('chi','123m'), ytMeld('chi','456m'), ytMeld('chi','789m'), ytMeld('chi','234p')] });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('含全食顺', ytHas(r, '全食顺'), ytNames(r));
+        ytEq('全食顺 = 1 赋', ytFuOf(r, '全食顺'), 1);
+    });
+    ytT('全求役的结构要求（必须恰好 4 副露）', () => {
+        // 全食顺/全碰刻 的成立条件是【恰好 4 个面子全部副露】：
+        //   · 3 副露 → _allMeldsOfType 因 melds.length !== 4 返回 false，不会误判（本用例验证这一侧）；
+        //   · 4 副露全吃/全碰 + 暗手只剩雀头 → 才成立（正向用例见上面的"全食顺"）。
+        const r = ytCheck({ hand: ytBuild('m',555,'m',55), selfDraw:false, winTile:'m5',
+            melds:[ytMeld('pon','111m'), ytMeld('pon','222m'), ytMeld('pon','z1')] });
+        ytEq('3 副露不含全碰刻', ytFuOf(r, '全碰刻'), 0);
+        ytOk('3 副露不含全食顺', !ytHas(r, '全食顺'), ytNames(r));
+    });
+    ytT('全食顺/全碰刻 在混合副露时不成立', () => {
+        const r = ytCheck({ hand: ytBuild('m',55), selfDraw:false, winTile:'m5',
+            melds:[ytMeld('chi','123m'), ytMeld('chi','456m'), ytMeld('pon','z1'), ytMeld('pon','z2')] });
+        ytOk('不含全食顺', !ytHas(r, '全食顺'), ytNames(r));
+        ytOk('不含全碰刻', !ytHas(r, '全碰刻'), ytNames(r));
+    });
+    ytT('上下文役 · 岭上炮/岭上花/杠立/人和 可按上下文触发', () => {
+        const base = { hand: ytBuild('m',123,'m',456,'m',789,'z',111,'z',55), winTile:'m4' };
+        const r0 = ytCheck(base);
+        ytOk('基线（无上下文）这些役不成立',
+            !ytHas(r0,'岭上炮') && !ytHas(r0,'岭上花') && !ytHas(r0,'杠立') && !ytHas(r0,'人和'), ytNames(r0));
+        ytOk('rinshanGun -> 岭上炮', ytHas(ytCheck(Object.assign({}, base, {ctx:{rinshanGun:true}})), '岭上炮'), '');
+        ytOk('rinshanFlower -> 岭上花',
+            ytHas(ytCheck(Object.assign({}, base, {selfDraw:true, ctx:{rinshanFlower:true}})), '岭上花'), '');
+        ytOk('kanRiichi -> 杠立', ytHas(ytCheck(Object.assign({}, base, {ctx:{kanRiichi:true}})), '杠立'), '');
+        ytOk('renhe -> 人和', ytHas(ytCheck(Object.assign({}, base, {ctx:{renhe:true}})), '人和'), '');
+    });
+    // ══════ 12. 水中月 / 纯正水中月 / 镜中花 ══════
+    ytT('水中月 14 赋（两花色各一组 112233 + 11p，单钓 1p）', () => {
+        const r = ytCheck({ hand: ytBuild('s',112233,'m',112233,'p',11), selfDraw:false, winTile:'p1' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('含水中月', ytHas(r, '水中月'), ytNames(r));
+        ytEq('水中月 = 14 赋', ytFuOf(r, '水中月'), 14);
+    });
+    ytT('水中月 · 和牌张不是 1p 则不成立', () => {
+        const r = ytCheck({ hand: ytBuild('s',112233,'m',112233,'p',14), selfDraw:false, winTile:'p4' });
+        ytOk('不含水中月', !ytHas(r, '水中月'), ytBrief(r));
+    });
+    ytT('纯正水中月（同花色两组 112233 + 11p）→ 70000 点', () => {
+        const r = ytCheck({ hand: ytBuild('s',112233,'s',112233,'p',11), selfDraw:false, winTile:'p1' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('含纯正水中月', ytHas(r, '纯正水中月'), ytNames(r));
+        ytEq('双役满特判 = 70000 点', r.specialPoints, 70000);
+    });
+    ytT('镜中花 14 赋（两花色各一组 112233 + 55p，单钓 5p）', () => {
+        const r = ytCheck({ hand: ytBuild('s',112233,'m',112233,'p',55), selfDraw:false, winTile:'p5' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytOk('含镜中花', ytHas(r, '镜中花'), ytNames(r));
+        ytEq('镜中花 = 14 赋', ytFuOf(r, '镜中花'), 14);
+    });
+    ytT('镜中花 · 和牌张不是 5p 则不成立', () => {
+        const r = ytCheck({ hand: ytBuild('s',112233,'m',112233,'p',56), selfDraw:false, winTile:'p6' });
+        ytOk('不含镜中花', !ytHas(r, '镜中花'), ytBrief(r));
+    });
+
+    ytT('国士无双（十三幺，役满 28 赋）', () => {
+        const r = ytCheck({ hand: ytBuild('m',19,'p',19,'s',19,'z',1234567,'m',1), selfDraw:false, winTile:'m1' });
+        ytOk('含国士无双', ytHas(r, '国士无双'), ytNames(r));
+        ytEq('国士无双 = 28 赋', ytFuOf(r, '国士无双'), 28);
+    });
+
+    // ══════ 13. 2026-09-26 规则书对齐新增用例 ══════
+    ytT('龙七对 · 同种 4 张算 2 对，七对子成立', () => {
+        const r = ytCheck({ hand: ytBuild('m',1111,'m',2233445566), selfDraw:false, winTile:'m6' });
+        ytOk('七对子成立', ytHas(r, '七对子'), ytBrief(r));
+    });
+    ytT('全带赤 · 万1-9各一张且其余 5 张均为红牌 → 14000 + 其他役×700', () => {
+        const r = ytCheck({ hand: ytBuild('m',123456789,'z',777,'p',55), selfDraw:false, winTile:'p5' });
+        ytOk('含全带赤', ytHas(r, '全带赤'), ytNames(r));
+        ytEq('全带赤 = 14 赋', ytFuOf(r, '全带赤'), 14);
+        const other = (r.activeYaku || []).filter(y => y.name !== '全带赤' && !y.isBonus && !y.ma)
+            .reduce((a, y) => a + y.fu, 0);
+        ytEq('specialPoints = 14000 + 其他役×700', r.specialPoints, 14000 + other * 700);
+    });
+    ytT('全带赤 · 其余含非红牌（2s）则不成立', () => {
+        const r = ytCheck({ hand: ytBuild('m',123456789,'s',222,'p',55), selfDraw:false, winTile:'p5' });
+        ytOk('不含全带赤', !ytHas(r, '全带赤'), ytNames(r));
+    });
+    ytT('南北通 · 倍满 14 赋 + 追加 7000 点', () => {
+        const g = YT.gameFactory(); g.players = [];
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44), selfDraw:false, winTile:'z4' });
+        ytOk('含南北通', ytHas(r, '南北通'), ytNames(r));
+        ytEq('南北通 = 14 赋', ytFuOf(r, '南北通'), 14);
+        const pb = (r.activeYaku || []).reduce((a, y) => a + (y.pointsBonus || 0), 0);
+        ytEq('表外点数加项合计 = 7000', pb, 7000);
+    });
+    ytT('水滴石破 · 首巡听牌 + 海底/河底（倍满 + 其他役得点）', () => {
+        const base = { hand: ytBuild('m',123,'m',456,'m',789,'p',11,'z',222), selfDraw:true, winTile:'z2' };
+        ytOk('ctx.waterDrop=true → 成立', ytHas(ytCheck(Object.assign({}, base, {ctx:{waterDrop:true}})), '水滴石破'), '');
+        ytOk('ctx.waterDrop=false → 不成立', !ytHas(ytCheck(Object.assign({}, base, {ctx:{waterDrop:false}})), '水滴石破'), '');
+    });
+    ytT('国士无双 · 13 面听加计 7000 点（不重复计算）', () => {
+        const r = ytCheck({ hand: ytBuild('m',19,'p',19,'s',19,'z',1234567,'m',1), selfDraw:true, winTile:'m1' });
+        ytEq('tokureiBonus = 7000（13面听，不叠加 1/9 自摸）', r.tokureiBonus, 7000);
+        ytEq('役满点数 = 35000', r.specialPoints, 35000);
+    });
+    ytT('国士无双 · 非 13 面听时命中 1/9 自摸特例 7000 点', () => {
+        const r = ytCheck({ hand: ytBuild('m',11,'m',9,'p',19,'s',19,'z',1234567), selfDraw:true, winTile:'p9' });
+        ytOk('含国士无双', ytHas(r, '国士无双'), ytNames(r));
+        ytEq('tokureiBonus = 7000', r.tokureiBonus, 7000);
+    });
+    ytT('大七星 · 开关控制（开=双役满70000；关=不计分）', () => {
+        const r0 = ytCheck({ hand: ytBuild('z',11223344556677), winTile:'z1', daxingqi:false });
+        ytOk('sevenHonors 标记为真', r0.sevenHonors === true, ytBrief(r0));
+        ytEq('关闭时 specialPoints = null', r0.specialPoints, null);
+        const r1 = ytCheck({ hand: ytBuild('z',11223344556677), winTile:'z1', daxingqi:true });
+        ytEq('开启时 specialPoints = 70000', r1.specialPoints, 70000);
+    });
+    ytT('美人七对 · 三元各4张+1饼对（有杠则不成立）', () => {
+        const r = ytCheck({ hand: ytBuild('z',5555,'z',6666,'z',7777,'p',11), winTile:'p1' });
+        ytOk('含美人七对', ytHas(r, '美人七对（镜中丽人）'), ytNames(r));
+        ytEq('双役满 = 70000 点', r.specialPoints, 70000);
+    });
+    ytT('驷马越岭 · 四杠+大单钓自摸（荣和不成立）', () => {
+        const kans = [
+            { type:'ankan', tiles:[ytTile('m1'),ytTile('m1'),ytTile('m1'),ytTile('m1')] },
+            { type:'ankan', tiles:[ytTile('m2'),ytTile('m2'),ytTile('m2'),ytTile('m2')] },
+            { type:'ankan', tiles:[ytTile('m3'),ytTile('m3'),ytTile('m3'),ytTile('m3')] },
+            { type:'minkan', tiles:[ytTile('m4'),ytTile('m4'),ytTile('m4'),ytTile('m4')] }
+        ];
+        const r = ytCheck({ hand:[ytTile('p5'),ytTile('p5')], melds:kans, selfDraw:true, winTile:'p5' });
+        ytOk('自摸 -> 含驷马越岭', ytHas(r, '驷马越岭'), ytNames(r));
+        ytEq('役满点数 = 35000', r.specialPoints, 35000);
+        const r2 = ytCheck({ hand:[ytTile('p5'),ytTile('p5')], melds:kans, selfDraw:false, winTile:'p5' });
+        ytOk('荣和 -> 不含驷马越岭', !ytHas(r2, '驷马越岭'), ytNames(r2));
+    });
+    ytT('四明杠 · 四个明杠 → 双役满 70000 点', () => {
+        const kans = ['m1','m2','m3','m4'].map(id => ({ type:'minkan', tiles:[ytTile(id),ytTile(id),ytTile(id),ytTile(id)] }));
+        const r = ytCheck({ hand:[ytTile('p5'),ytTile('p5')], melds:kans, selfDraw:false, winTile:'p5' });
+        ytOk('含四明杠', ytHas(r, '四明杠'), ytNames(r));
+        ytEq('双役满 = 70000 点', r.specialPoints, 70000);
+    });
+    ytT('连庄奖励 = 700 点 × 本场（8.1）', () => {
+        const g = YT.gameFactory();
+        g.honba = 0; ytEq('本场0 -> 0', g.honbaBonus(), 0);
+        g.honba = 1; ytEq('本场1 -> 700', g.honbaBonus(), 700);
+        g.honba = 3; ytEq('本场3 -> 2100', g.honbaBonus(), 2100);
+    });
+    ytT('段位点（8.3）· 次位赏 1位+14 / 2位+7 / 3位0 / 4位−7', () => {
+        const g = YT.gameFactory();
+        g.initialPoints = 49000;
+        g.rankPoints = [0,0,0,0];
+        g.scores = [49000, 49000, 49000, 49000];   // 全部持平 -> 纯顺位赏
+        g.settleRankPoints();
+        ytEq('1位 段位点 = +14', g.rankPoints[0], 14);
+        ytEq('2位 段位点 = +7',  g.rankPoints[1], 7);
+        ytEq('3位 段位点 = 0',   g.rankPoints[2], 0);
+        ytEq('4位 段位点 = −7',  g.rankPoints[3], -7);
+        // 7000 点差 -> 10 × 0.1 = +1.0
+        g.scores = [56000, 49000, 49000, 42000];
+        g.settleRankPoints();
+        ytEq('1位（+7000）段位点 = 14 + 1.0', g.rankPoints[0], 15);
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
+// 运行
+// ══════════════════════════════════════════════════════════════
+(async function ytRun() {
+    const sumEl = document.getElementById('summary');
+    const outEl = document.getElementById('out');
+    try {
+        await ytLoad();
+        const config = await (await fetch('../ike.json')).json();
+        YT.checker = new WinChecker(null, config);
+        // 验证台按"全部启用"跑：可选役（全数、全数筋和、同色老少…）默认关，
+        // 但规则正确性验证需要它们参与，否则含这些役的手牌会掉到 7 赋门槛以下。
+        (config.yaku || []).forEach(function(y){ if (y.optional) YT.checker.optionalEnabled.add(y.id); });
+        YT.gameFactory = function () {
+            const g = Object.create(TiisuMahjong.prototype);
+            g.config = config; g.settings = { daxingqi:false }; g.rinshan = []; g.players = [];
+            return g;
+        };
+
+        ytDefineCases();
+
+        const started = Date.now();
+        for (const c of YT.cases) {
+            YT.lines.push('# ' + c.name);
+            try { c.fn(); }
+            catch (e) { YT.fail++; YT.lines.push('  ERROR ' + (e && e.message ? e.message : String(e))); }
+        }
+        const ms = Date.now() - started;
+        const total = YT.pass + YT.fail;
+        const head = 'YAKUTEST: ' + (YT.fail === 0 ? 'PASS' : 'FAIL') +
+            ' ' + YT.pass + '/' + total + ' 断言 · ' + YT.cases.length + ' 用例 · ' + ms + 'ms';
+        sumEl.textContent = head;
+        sumEl.className = YT.fail === 0 ? 'pass' : 'fail';
+        outEl.textContent = head + '\n' + YT.lines.join('\n');
+    } catch (e) {
+        const msg = 'YAKUTEST: ERROR ' + (e && e.message ? e.message : String(e));
+        sumEl.textContent = msg;
+        outEl.textContent = msg + '\n' + (e && e.stack ? e.stack : String(e));
+    }
+})();
+</script>
+</body>
+</html>

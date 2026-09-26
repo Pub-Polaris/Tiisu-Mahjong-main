@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>七子麻将 · 门户</title>
+<style>
+*{box-sizing:border-box;user-select:none}
+body{background:#0f2b10;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;font-family:'Segoe UI',Roboto,sans-serif;margin:0;padding:24px;color:#e4f0d8}
+.wrap{width:920px;display:flex;flex-direction:column;gap:18px}
+.banner{background:linear-gradient(135deg,#2e6a34,#25702f);border-radius:24px;border:3px solid #57a15c;padding:22px 30px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.banner h1{margin:0;color:#ffe9a0;font-size:30px}
+.banner .sub{color:#cfe8c0;font-size:15px;margin-top:8px}
+.card{background:#1c4a24;border:1px solid #4f9a58;border-radius:20px;padding:18px 24px}
+.card h2{color:#ffe9a0;margin:0 0 14px;font-size:19px;display:flex;align-items:center;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.mode-btn{background:#2e6a34;border:2px solid #57a15c;border-radius:14px;padding:12px 22px;font-size:16px;font-weight:700;color:#e8f0d8;cursor:pointer;box-shadow:0 4px 0 #1a3a1c;transition:all .06s}
+.mode-btn:hover{transform:translateY(-2px)}
+.mode-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #1a3a1c}
+.mode-btn .d{display:block;font-size:12px;color:#9bc99a;font-weight:400;margin-top:2px}
+.input{background:#0f2b14;border:1px solid #5a9a60;border-radius:10px;padding:8px 12px;color:#f8f0c8;font-size:15px;outline:none}
+.input:focus{border-color:#d0a848}
+label{font-size:14px;color:#d8f0cc}
+.check{display:flex;align-items:center;gap:6px;cursor:pointer}
+.save-btn{background:#2a8a8a;border:none;border-radius:12px;padding:10px 22px;font-weight:700;color:#eef7ea;cursor:pointer;font-size:15px;box-shadow:0 3px 0 #1a3a3a}
+.save-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #1a3a3a}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.stat-box{background:#12331a;border-radius:14px;padding:12px;text-align:center;border:1px solid #3f7a48}
+.stat-box .v{font-size:26px;font-weight:800;color:#ffe9a0}
+.stat-box .k{font-size:12px;color:#b8d8a0;margin-top:3px}
+.stats-list{font-size:13px;color:#b8d8a0;line-height:1.7}
+.tools td{padding:10px 6px;vertical-align:middle}
+.tools .tname{font-weight:700;color:#ffedb0}
+.tools .tdesc{font-size:13px;color:#b8d8a0;margin-top:3px}
+a.btn-link{display:inline-block;background:#2a8a8a;border-radius:12px;padding:9px 18px;font-weight:700;color:#eef7ea;text-decoration:none;cursor:pointer;box-shadow:0 3px 0 #1a3a3a}
+a.btn-link:hover{transform:translateY(-2px)}
+.docs a{color:#9dd8ff;text-decoration:none;margin-right:16px}
+.docs a:hover{text-decoration:underline}
+.note{font-size:12px;color:#9bca9a;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="banner">
+        <h1>🀄 七子麻将 · 门户</h1>
+        <div class="sub">选择对局模式进入游戏 · 配置在下方设置中统一管理（保存于服务器 settings.json）</div>
+    </div>
+
+    <div class="card">
+        <h2>🎮 开始游戏</h2>
+        <div class="row">
+            <button class="mode-btn" onclick="openGame(1)">一局<span class="d">单场次，打完即止</span></button>
+            <button class="mode-btn" onclick="openGame(4)">东风场<span class="d">每位玩家坐庄一次</span></button>
+            <button class="mode-btn" onclick="openGame(8)">南风场（半庄）<span class="d">东南场 · 每位玩家坐庄一次</span></button>
+            <button class="mode-btn" onclick="openGame(16)">全庄<span class="d">东南西北 · 4人轮流坐庄</span></button>
+        </div>
+        <div class="row" style="margin-top:14px">
+            <span>测试模式：</span>
+            <input class="input" type="number" id="testRounds" value="10" min="1" max="99" style="width:80px;text-align:center">
+            <button class="mode-btn" onclick="openGame(document.getElementById('testRounds').value||10, true)">测试模式<span class="d">人工可操作 · 自定义轮数</span></button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⚙️ 设置（每次开局前可改 · 保存到服务器）</h2>
+        <div class="row" style="margin-bottom:12px">
+            <label>长考时间（秒，10–100）</label>
+            <input class="input" type="number" id="setThink" value="30" min="10" max="100" style="width:80px;text-align:center">
+        </div>
+        <div class="row" style="margin-bottom:12px">
+            <label class="check"><input type="checkbox" id="setShowMa">显示马牌（岭上/赋马）</label>
+            <label class="check"><input type="checkbox" id="setDaxingqi">大七星（字牌七对子）算赋</label>
+            <label class="check"><input type="checkbox" id="setShowDebug">游戏页显示调试面板</label>
+            <label class="check"><input type="checkbox" id="setShowWall">显示牌山（调试）</label>
+        </div>
+        <div style="margin-bottom:8px;font-size:14px;color:#b8d8a0">可选役（默认全部禁用）</div>
+        <div class="row" style="margin-bottom:14px">
+            <label class="check"><input type="checkbox" id="opt_same_color_old_young">同色老少</label>
+            <label class="check"><input type="checkbox" id="opt_same_color_double_old_young">同色双老少</label>
+            <label class="check"><input type="checkbox" id="opt_two_color_double_old_young">双色双老少</label>
+            <label class="check"><input type="checkbox" id="opt_double_even_ko">双双逢</label>
+            <label class="check"><input type="checkbox" id="opt_triple_even_ko">三双逢</label>
+        </div>
+        <button class="save-btn" onclick="saveSettings()">💾 保存设置</button>
+        <span class="note" id="saveNote"></span>
+    </div>
+
+    <div class="card">
+        <h2>📊 大七星 / 对局统计（累计 · 存于 stats.json）</h2>
+        <div class="stats-grid">
+            <div class="stat-box"><div class="v" id="stDaxingqi">0</div><div class="k">大七星</div></div>
+            <div class="stat-box"><div class="v" id="stWins">0</div><div class="k">和牌数</div></div>
+            <div class="stat-box"><div class="v" id="stRounds">0</div><div class="k">局数</div></div>
+            <div class="stat-box"><div class="v" id="stPlayers">0</div><div class="k">玩家数</div></div>
+        </div>
+        <div class="stats-list" id="stByPlayer">（暂无明细）</div>
+        <div class="row" style="margin-top:12px">
+            <button class="save-btn" onclick="resetStats()">🔄 重置统计</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🛠 工具</h2>
+        <table class="tools" width="100%" cellspacing="0">
+            <tr>
+                <td>
+                    <div class="tname">调试控制台</div>
+                    <div class="tdesc">运行时命令（下一局/重置/手牌调试）· 持久化调试开关 · 人类可操作不落盘</div>
+                </td>
+                <td style="text-align:right"><a class="btn-link" href="debug.html" target="_blank">打开</a></td>
+            </tr>
+        </table>
+        <div class="note">游戏页只保留日志；运行命令请在 debug.html 操作，或使用键盘快捷键。</div>
+    </div>
+
+    <div class="card docs">
+        <h2>📄 文档</h2>
+        <p style="margin:4px 0 2px;color:#ffe9a0;font-weight:700">总索引 / 工程约定</p>
+        <a href="docs/README.md" target="_blank">文档总索引（先从这里进）</a>
+        <a href="AGENTS.md" target="_blank">AGENTS.md（仓库根目录 · agent 主契约）</a>
+
+        <p style="margin:10px 0 2px;color:#ffe9a0;font-weight:700">北极星 · 规则与设计</p>
+        <a href="docs/北极星_(人类)/七子麻将指北极星_CN_260721_050000_0.07af.html" target="_blank">规则书（含目录 + 实现对照附录）</a>
+        <a href="docs/北极星_(人类)/代码地图.md" target="_blank">代码地图（零基础）</a>
+        <a href="docs/北极星_(人类)/个人指南_北极星.md" target="_blank">个人指南（代码结构）</a>
+        <a href="docs/北极星_(人类)/规则缺口清单.md" target="_blank">规则缺口清单</a>
+        <a href="docs/北极星_(人类)/规则与实现_当前版本.md" target="_blank">规则与实现口径账本</a>
+        <a href="docs/北极星_(人类)/规则对照_审查_260926.md" target="_blank">规则对照审查报告（含待裁定清单）</a>
+        <a href="docs/北极星_(人类)/design_design_guide.md" target="_blank">美术设计对接指南</a>
+        <a href="docs/北极星_(人类)/给北极星的信.md" target="_blank">给北极星的信</a>
+        <a href="docs/北极星_(人类)/导航.md" target="_blank">导航（北极星区）</a>
+
+        <p style="margin:10px 0 2px;color:#ffe9a0;font-weight:700">DSH · 交接与约定</p>
+        <a href="docs/DSH/项目交接.md" target="_blank">项目交接</a>
+        <a href="docs/DSH/已知坑.md" target="_blank">已知坑</a>
+
+        <p style="margin:10px 0 2px;color:#ffe9a0;font-weight:700">OpencodeAgent · 操作与历史</p>
+        <a href="docs/OpencodeAgent_老Agent想说的话/CHANGELOG.md" target="_blank">CHANGELOG（全部历史改动）</a>
+        <a href="docs/OpencodeAgent_老Agent想说的话/工具调用说明.md" target="_blank">工具调用说明</a>
+    </div>
+</div>
+<script>
+var OPT_IDS = ['same_color_old_young','same_color_double_old_young','two_color_double_old_young','double_even_ko','triple_even_ko'];
+
+function openGame(mode, isTest) {
+    var url = 'index.html?mode=' + mode + (isTest ? '&test=1' : '');
+    window.open(url, '_blank');
+}
+
+function api(url, method, data) {
+    return fetch(url, {
+        method: method || 'GET',
+        headers: data ? {'Content-Type':'application/json'} : {},
+        body: data ? JSON.stringify(data) : undefined
+    }).then(function(r){ return r.json(); });
+}
+
+async function loadSettings() {
+    try {
+        var s = await api('/api/settings');
+        document.getElementById('setThink').value = s.thinkSeconds || 30;
+        document.getElementById('setShowMa').checked = !!s.showMa;
+        document.getElementById('setDaxingqi').checked = !!s.daxingqi;
+        document.getElementById('setShowDebug').checked = !!s.showDebug;
+        document.getElementById('setShowWall').checked = !!s.showWallViewer;
+        var en = s.optionalYaku || [];
+        OPT_IDS.forEach(function(id){
+            document.getElementById('opt_' + id).checked = en.indexOf(id) >= 0;
+        });
+    } catch(e) { console.warn('loadSettings failed', e); }
+}
+
+async function saveSettings() {
+    var s = {
+        thinkSeconds: parseInt(document.getElementById('setThink').value) || 30,
+        showMa: document.getElementById('setShowMa').checked,
+        daxingqi: document.getElementById('setDaxingqi').checked,
+        showDebug: document.getElementById('setShowDebug').checked,
+        showWallViewer: document.getElementById('setShowWall').checked,
+        optionalYaku: OPT_IDS.filter(function(id){ return document.getElementById('opt_' + id).checked; })
+    };
+    try {
+        var saved = await api('/api/settings', 'POST', s);
+        var note = document.getElementById('saveNote');
+        note.textContent = '已保存 ✅';
+        setTimeout(function(){ note.textContent = ''; }, 2000);
+    } catch(e) {
+        document.getElementById('saveNote').textContent = '保存失败';
+    }
+}
+
+async function loadStats() {
+    try {
+        var st = await api('/api/stats');
+        document.getElementById('stDaxingqi').textContent = st.daxingqiCount || 0;
+        document.getElementById('stWins').textContent = st.wins || 0;
+        document.getElementById('stRounds').textContent = st.rounds || 0;
+        var bp = st.byPlayer || {};
+        document.getElementById('stPlayers').textContent = Object.keys(bp).length;
+        var rows = Object.keys(bp).map(function(n){
+            var e = bp[n] || {};
+            return '· ' + n + '：和牌 ' + (e.wins||0) + ' · 大七星 ' + (e.daxingqi||0);
+        });
+        document.getElementById('stByPlayer').textContent = rows.length ? rows.join('\n') : '（暂无明细）';
+    } catch(e) { console.warn('loadStats failed', e); }
+}
+
+function resetStats() {
+    if (!confirm('确定重置所有统计？')) return;
+    api('/api/stats', 'POST', { kind: 'reset' }).then(loadStats);
+}
+
+loadSettings();
+loadStats();
+</script>
+</body>
+</html>

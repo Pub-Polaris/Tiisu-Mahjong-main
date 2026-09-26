@@ -1,0 +1,23 @@
+{
+  "daxingqiCount": 1,
+  "wins": 10,
+  "rounds": 9,
+  "byPlayer": {
+    "你": {
+      "wins": 2,
+      "daxingqi": 1
+    },
+    "AI 北": {
+      "wins": 2,
+      "daxingqi": 0
+    },
+    "AI 西": {
+      "wins": 4,
+      "daxingqi": 0
+    },
+    "AI 南": {
+      "wins": 2,
+      "daxingqi": 0
+    }
+  }
+}
