@@ -60,6 +60,7 @@
 | 文档 | 一句话 |
 |---|---|
 | `AGENTS.md` | **主契约**：概览、运行/校验命令、仓库结构、风格约定、测试与验收、安全红线、变更约定 |
+| `AGCOMMIT_CHAIN.MD` | 两个 coding agent（dsh / opencode）的**改动链条**：每次提交一行摘要 + trailer 约定。**按需查，不进必读清单** |
 | `CLAUDE.md` | 兼容入口（内容为一行 `AGENTS.md`），供读取 `CLAUDE.md` 的工具使用 |
 | `scripts/run_all.py` / `run_all.cmd` | **一键校验**：yaku 断言 + engine 断言 + N 局全自动冒烟（推荐用 `.py`，避免 AMSI 崩溃） |
 | `scripts/yaku_test.html` / `run_yaku_test.ps1` | 役种 / 赋 / 点数断言（49 用例 · 129 断言） |
