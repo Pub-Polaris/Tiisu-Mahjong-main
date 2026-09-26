@@ -33,7 +33,8 @@
 | 2026-09-27 04:1x | `dsh` | `b090de0` | 修 3 处文档错误（`AGENTS.md` 42→57、`工具调用说明.md` 日期、`docs/README.md` 改跑 `run_all.py`）；`AGENTS.md` 七.8 加 Agent trailer 约定；新建 `AGCOMMIT_CHAIN.MD`；新增 `260927-04` | 链条机制自本条起生效 |
 | 2026-09-27 04:5x | `dsh` | `233dd87` | `AGCOMMIT_CHAIN.MD` 规则 6/7（推前 rebase、trailer 取值含北极星）；`AGENTS.md` 七.8 改双 trailer（`Agent` + `Pair`）；`CHANGELOG` 260927-04 同步 | 护栏已齐，等 opencode 接 |
 | 2026-09-27 05:0x | `dsh` | `84215a0` | 补链条规则 8（别人提交后回填上一行 hash）与「没有 git 也能看」说明；`AGENTS.md` 七.8、`CHANGELOG` 同步 | opencode 可直读磁盘；本轮由 dsh 独做 |
-| 2026-09-27 05:2x | `dsh` | `（本条）` | `项目交接.md` 同步现状（无git→git双轨、无测试→有、42+6→50+20、役满→已完成、删失实的「水滴石破未实现」）；`docs/README.md` 登记链条文件；`CHANGELOG` 260927-05 | 交接文档已可用于 next agent |
+| 2026-09-27 05:2x | `dsh` | `0582944` | `项目交接.md` 同步现状（无git→git双轨、无测试→有、42+6→50+20、役满→已完成、删失实的「水滴石破未实现」）；`docs/README.md` 登记链条文件；`CHANGELOG` 260927-05 | 交接文档已可用于 next agent |
+| 2026-09-27 05:5x | `dsh` | `（本条）` | 新增 `CHANGELOG_ARCHIVE.md`（12 个历史条目移入）；主 CHANGELOG 降 49%；待办区重写 + 编号约定；修重复页脚 | 主 CHANGELOG 已瘦身，会话固定成本下降 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
 > 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
