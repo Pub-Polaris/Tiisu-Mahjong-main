@@ -23,7 +23,7 @@
 | 260927-01 | 2026-09-27 | 仓库上 GitHub + 契约同步 git 双轨 | 建 `Pub-Polaris/Tiisu-Mahjong-main`（79 文件）；AGENTS.md 加 2.6 节、红线改写、交付含 push |
 | 260927-02 | 2026-09-27 | docs 落差清理 + stats.json 出库 | stats.json 加 .gitignore 并取消跟踪；修 CHANGELOG 两条过期陈述；工具调用说明补全目录名与 git 现状 |
 | 260927-03 | 2026-09-27 | 已知坑补两条工具坑 | 新增 6.8（Get-Content -Encoding UTF8 按 GBK 读、写回毁全文）与 6.9（行尾 CRLF/LF 不统一）；工具与环境 7→9 条 |
-| 260927-04 | 2026-09-27 | 修正 3 处文档错误 + 建立 agent 改动链条 | AGENTS.md 42->57、工具调用说明日期、docs/README.md 改跑 run_all.py；新增 Agent trailer 约定与根目录 AGCOMMIT_CHAIN.MD |
+| 260927-04 | 2026-09-27 | 修正 3 处文档错误 + 建立 agent 改动链条 | AGENTS.md 42->57、工具调用说明日期、docs/README.md 改跑 run_all.py；双 trailer（Agent/Pair，含北极星）+ pull --rebase 约定 + 根目录 AGCOMMIT_CHAIN.MD |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
 ---
@@ -166,16 +166,16 @@
 
 ### 二、建立 agent 改动交换机制
 
-**（1）git trailer**：每个提交的 message 末尾带一行
+**(1) git trailer**：每个提交的 message 末尾带**两行**
 
 ```
-Agent: dsh        （DeepSeek Harness）
-Agent: opencode
+Agent: dsh        (取值：dsh / opencode / 北极星)
+Pair: dsh+opencode
 ```
 
-- 可用 `git log --grep='^Agent:'` 过滤出任一方的全部提交。
+- 可用 `git log --grep='^Agent:'` 筛出任一方的全部提交；`--grep='^Agent: 北极星'` 可查出北极星在 GitHub 网页上直接提交的条目。
 - **历史提交不回填 trailer**（约定自本条目起生效）；历史归属登记见下方链条文件。
-
+- **推之前先 `git pull --rebase origin main`**：远程已有他人提交时用 rebase，**不要** `--force`（强推会抹掉对方工作）。
 **（2）根目录链条文件 `AGCOMMIT_CHAIN.MD`**（新建）：
 
 - 每次提交**追加一行摘要**：`时间 | Agent | commit | 改了什么 | 留给谁`。
@@ -183,7 +183,7 @@ Agent: opencode
 - **定位：按需查，不进"必读清单"**——避免它随提交数增长而抬高每个会话的固定输入成本（北极星 2026-09-27 关注点：opencode 侧缓存/费用）。
 - 该文件已登记 `8a3eb4d` 起的历史提交归属（含北极星在 GitHub 网页上的两次 README 提交）。
 
-**（3）`AGENTS.md` 七新增第 8 条**：提交须带 `Agent:` trailer，并在 `AGCOMMIT_CHAIN.MD` 追加一行摘要。
+**（3）`AGENTS.md` 七新增第 8 条**：提交须带双 trailer（`Agent:` + `Pair:`），并在 `AGCOMMIT_CHAIN.MD` 追加一行摘要；推送前先 `git pull --rebase origin main`。
 
 ### 三、验收
 

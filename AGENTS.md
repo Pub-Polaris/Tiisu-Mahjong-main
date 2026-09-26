@@ -274,7 +274,7 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 6. **不得对仓库重新 `git init` 或强推覆盖历史**。远程为 `Pub-Polaris/Tiisu-Mahjong-main`（`main` 分支），其 `Initial commit`（MIT LICENSE）必须保留；与远端不一致时用 fetch + merge 解决。版本载体为 **git 提交 + `backup/*.tar.gz` 双轨**，两者都不得移除。
 7. **提交与交付**：一次改动的"交付"= 跑完 `run_all.py` 全绿 → 追加 CHANGELOG → 同步受影响文档与页脚 → 落一份 `backup_*.tar.gz` → **`git commit` 并 `git push origin main`**。只提交不推送（或只备份不提交）都算未交付。
 
-8. **每个提交带 Agent trailer**：commit message 末尾加一行 `Agent: dsh` 或 `Agent: opencode`（可用 `git log --grep='^Agent:'` 过滤）。同时在根目录 `AGCOMMIT_CHAIN.MD` **追加一行摘要**（时间 / Agent / commit / 改了什么 / 留给谁）；该文件**只追加、不回改别人的行**，且**不进"必读清单"**（按需查，避免会话成本随提交数增长）。
+8. **每个提交带双 trailer + 链条登记**：commit message 末尾加两行 —— `Agent: <who>`（`dsh` / `opencode` / `北极星`）与 `Pair: dsh+opencode`；`git log --grep='^Agent:'` 可筛选任一方。同时在根目录 `AGCOMMIT_CHAIN.MD` **追加一行摘要**（时间 / Agent / commit / 改了什么 / 留给谁）；该文件**只追加、不回改别人的行**，且**不进"必读清单"**（按需查，避免会话成本随提交数增长）。**推之前先 `git pull --rebase origin main`**：远程已有他人提交时用 rebase，**不要** `--force`。
 
 
 ---
