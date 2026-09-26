@@ -71,29 +71,6 @@
 - `AGENTS.md` 结构与中文完好（298 行、UTF-8 无 BOM、行尾 CRLF、小节顺序 2.1→2.6 连续）；旧陈述「本项目未使用 git」已从正文清除；页脚版本戳已更新。
 
 
-## 260927-03 — 已知坑补两条工具坑（2026-09-27）
-
-**主题**：把本轮踩到的两个 PowerShell / git 工具坑写进 `docs/DSH/已知坑.md` 第六节。
-
-### 一、新增 6.8 · `Get-Content -Encoding UTF8` 按 GBK 读文件
-
-- **现象**：`Get-Content -Raw -Encoding UTF8` 读 UTF-8 文件、替换后 `Set-Content` 写回，中文全部变成 `涓€銆侀」銮` 类乱码，体积异常涨大。
-- **原因**：Windows PowerShell 5.1 的 `-Encoding UTF8` 只作用于**写出**；**读取**时按系统 ANSI 代码页（936/GBK）解码。
-- **要点**：乱码在终端里常显示"正常"，极易被误判为没事 → 改完必须用 `[System.IO.File]::ReadAllText(..., UTF8)` 抽查中文标题。
-- **处理**：一律走 .NET API（`ReadAllText`/`WriteAllText` + `UTF8Encoding $false`），不用 `Get-Content`/`Set-Content`；已毁则 `git checkout -- <file>` 还原。
-
-### 二、新增 6.9 · 行尾 CRLF/LF 不统一
-
-- **现象**：`$lines -join "`r`n"` 写回后 `git diff` 显示全文每一行都改了，体积每行 +1 字节。
-- **原因**：仓库启用 `core.autocrlf` → git 库内存 LF、checkout 到磁盘转 CRLF；但**并非所有文件都如此**（`工具调用说明.md`/`导航.md`/`portal.html`/`.gitignore` 磁盘上就是 LF）。
-- **处理**：优先做**纯字符串替换**（`$raw.Replace`），完全不碰行尾；必须按行操作时，先量出该文件实际行尾（`ReadAllBytes` 数 `0A`）再沿用，改完复查。
-
-### 三、状态表与页脚
-
-- `已知坑.md` 状态一览："工具与环境" 7 → **9** 条。
-- 页脚文档版本 `260926` → `260927`（备份名不变）。
-- 行尾：该文件磁盘为 **LF**（227 行），本次写入后仍为 LF；`git diff` 仅 `+32 / -3` 行，无整文件噪音。
-
 ## 260927-02 — docs 落差清理 + stats.json 出库（2026-09-27）
 
 **主题**：清理 `260927-01` 里登记的"已知未做"落差；把本机运行计数器移出版本库。
@@ -148,6 +125,29 @@
 - `git check-ignore -v stats.json` 生效；`git status` 中 `stats.json` 不再出现。
 - CHANGELOG 两条过期陈述已就地更新；`工具调用说明.md` 目录树为完整目录名、并含 git 现状提示。
 - 各改动文件行尾与其原状一致（`.gitignore` 统一 LF；`CHANGELOG.md` 保持 CRLF；`工具调用说明.md` 保持 LF）。
+
+## 260927-03 — 已知坑补两条工具坑（2026-09-27）
+
+**主题**：把本轮踩到的两个 PowerShell / git 工具坑写进 `docs/DSH/已知坑.md` 第六节。
+
+### 一、新增 6.8 · `Get-Content -Encoding UTF8` 按 GBK 读文件
+
+- **现象**：`Get-Content -Raw -Encoding UTF8` 读 UTF-8 文件、替换后 `Set-Content` 写回，中文全部变成 `涓€銆侀」銮` 类乱码，体积异常涨大。
+- **原因**：Windows PowerShell 5.1 的 `-Encoding UTF8` 只作用于**写出**；**读取**时按系统 ANSI 代码页（936/GBK）解码。
+- **要点**：乱码在终端里常显示"正常"，极易被误判为没事 → 改完必须用 `[System.IO.File]::ReadAllText(..., UTF8)` 抽查中文标题。
+- **处理**：一律走 .NET API（`ReadAllText`/`WriteAllText` + `UTF8Encoding $false`），不用 `Get-Content`/`Set-Content`；已毁则 `git checkout -- <file>` 还原。
+
+### 二、新增 6.9 · 行尾 CRLF/LF 不统一
+
+- **现象**：`$lines -join "`r`n"` 写回后 `git diff` 显示全文每一行都改了，体积每行 +1 字节。
+- **原因**：仓库启用 `core.autocrlf` → git 库内存 LF、checkout 到磁盘转 CRLF；但**并非所有文件都如此**（`工具调用说明.md`/`导航.md`/`portal.html`/`.gitignore` 磁盘上就是 LF）。
+- **处理**：优先做**纯字符串替换**（`$raw.Replace`），完全不碰行尾；必须按行操作时，先量出该文件实际行尾（`ReadAllBytes` 数 `0A`）再沿用，改完复查。
+
+### 三、状态表与页脚
+
+- `已知坑.md` 状态一览："工具与环境" 7 → **9** 条。
+- 页脚文档版本 `260926` → `260927`（备份名不变）。
+- 行尾：该文件磁盘为 **LF**（227 行），本次写入后仍为 LF；`git diff` 仅 `+32 / -3` 行，无整文件噪音。
 
 ## 260926-08 — 十三不靠 + 统一流局按钮（2026-09-27 凌晨）
 
