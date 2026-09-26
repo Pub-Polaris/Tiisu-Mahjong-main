@@ -48,6 +48,38 @@ function ytLoadFile(file) {
 }
 async function ytLoad() { for (const f of YT_FILES) await ytLoadFile(f); }
 
+// ── 测试隔离：拦截 /api/stats 与 /api/state ──
+// 断言会真实调用 engine 的 reportStats*() / saveSessionState()，若不拦截就会把
+// 累计统计写进 stats.json、把会话存档写进 state.json，
+// 导致「跑一次测试 = 运行态被改」。这里把这些端点换成内存桩，只记录调用不落盘。
+const YT_STATS_CALLS = [];
+const YT_STATE_CALLS = [];
+function ytStubNet() {
+    const orig = window.fetch.bind(window);
+    window.fetch = function (url, opts) {
+        try {
+            if (typeof url === 'string') {
+                const stub = { ok: true, status: 200,
+                    json: function () { return Promise.resolve({}); },
+                    text: function () { return Promise.resolve('{}'); } };
+                if (url.indexOf('/api/stats') !== -1) {
+                    let body = {};
+                    try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
+                    YT_STATS_CALLS.push(body);
+                    return Promise.resolve(stub);
+                }
+                if (url.indexOf('/api/state') !== -1) {
+                    let body = {};
+                    try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e) {}
+                    YT_STATE_CALLS.push(body);
+                    return Promise.resolve(stub);
+                }
+            }
+        } catch (e) {}
+        return orig(url, opts);
+    };
+}
+
 // ── 断言框架 ──
 const YT = { cases: [], pass: 0, fail: 0, lines: [] };
 function ytT(name, fn) { YT.cases.push({ name, fn }); }
@@ -336,7 +368,7 @@ function ytDefineCases() {
     // ══════ 9. 已知未实现 ══════
     ytT('字一色 — 已实现，但被更高优先权覆盖（记录用）', () => {
         // 结论（真实行为）：全字牌的 4 组面子必然都是刻子 → 必然是四暗刻，
-        // 而四暗刻优先于字一色；四风齐则被四喜和截走；七对形则被tiisuin截走。
+        // 而四暗刻优先于字一色；四风齐则被四喜和截走；七对形则被大七星截走。
         // 因此按已确认的优先权顺序，字一色在实际牌型里【不可达】。
         const r = ytCheck({ hand: ytBuild('z',111,'z',222,'z',555,'z',666,'z',77), selfDraw:true, winTile:'z1' });
         ytOk('和牌成功', r.success, ytBrief(r));
@@ -450,9 +482,9 @@ function ytDefineCases() {
         ytOk('含国士无双', ytHas(r, '国士无双'), ytNames(r));
         ytEq('tokureiBonus = 7000', r.tokureiBonus, 7000);
     });
-    ytT('tiisuin · 不计分、只标记（触发由 engine 无条件处理）', () => {
-        // 2026-09-27 起：tiisuin【不再计分】，winchecker 只标记 sevenHonors；
-        // 触发时由 engine 的 declareDaxingqi() 直接结束本局 + 回门户 + 记统计（无条件，无开关）。
+    ytT('大七星（tiisuin）· 不计分、只标记（触发由 engine 无条件处理）', () => {
+        // 2026-09-27 起：大七星【不再计分】，winchecker 只标记 sevenHonors；
+        // 触发时由 engine 的 declareTiisuin() 直接结束整场 + 回门户 + 记统计（无条件，无开关）。
         const r = ytCheck({ hand: ytBuild('z',11223344556677), winTile:'z1' });
         ytOk('sevenHonors 标记为真', r.sevenHonors === true, ytBrief(r));
         ytEq('specialPoints = null（不计分）', r.specialPoints, null);
@@ -512,6 +544,22 @@ function ytDefineCases() {
         ytOk('不含三七之花', !ytHas(r, '三七之花'), ytNames(r));
         ytOk('改由四暗刻成立（优先权链在起作用）', ytHas(r, '四暗刻'), ytNames(r));
     });
+
+    // ══════ 14. 测试隔离 ══════
+    ytT('测试隔离 · /api/stats 与 /api/state 已被拦截，断言不污染运行态文件', () => {
+        YT_STATS_CALLS.length = 0;
+        YT_STATE_CALLS.length = 0;
+        const g = YT.gameFactory();
+        g.players = [{ name:'甲' }, { name:'乙' }, { name:'丙' }, { name:'丁' }];
+        // saveSessionState() 会读这些字段；gameFactory 未初始化它们，先补齐（否则会被内部 try/catch 静默吞掉、不发请求）
+        g.scores = [0,0,0,0]; g.modeTarget = 4; g.handsPlayed = 0; g.handNumber = 0;
+        g.dealerIndex = 0; g.honba = 0; g.roundWindIdx = 0; g.dealerCount = 0;
+        g.reportStatsRoundOnce();
+        ytEq('reportStatsRoundOnce() 被拦截 1 次', YT_STATS_CALLS.length, 1);
+        ytOk('拦截到的 body 为 {rounds:1}', YT_STATS_CALLS[0].rounds === 1, JSON.stringify(YT_STATS_CALLS[0]));
+        g.saveSessionState();
+        ytOk('saveSessionState() 的 /api/state 被拦截', YT_STATE_CALLS.length >= 1, 'n=' + YT_STATE_CALLS.length);
+    });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -522,6 +570,7 @@ function ytDefineCases() {
     const outEl = document.getElementById('out');
     try {
         await ytLoad();
+        ytStubNet();
         const config = await (await fetch('../ike.json')).json();
         YT.checker = new WinChecker(null, config);
         // 验证台按"全部启用"跑：可选役（全数、全数筋和、同色老少…）默认关，

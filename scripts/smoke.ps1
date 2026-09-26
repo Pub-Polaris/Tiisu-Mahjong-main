@@ -123,14 +123,21 @@ Write-Host "Tiisu Mahjong smoke test (Runs=$Runs, Port=$Port)"
 Write-Host "Root: $script:Root"
 
 # ---- 1) single instance + port ----
+# NOTE: "single instance" means "only ONE process is LISTENING on $Port",
+#       NOT "only one python.exe on the whole machine".
+#       This machine may run unrelated python (e.g. unsloth_studio), which used
+#       to make this check fail permanently (FAIL 8/9). See docs/DSH "known traps" 6.10.
 Write-Head "1/5 server instance and port"
-$procs = @(Get-CimInstance Win32_Process -Filter "Name='python.exe'" -ErrorAction SilentlyContinue)
-Check "python process count <= 1" ($procs.Count -le 1) ("found " + $procs.Count)
+$owners = @(
+    Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty OwningProcess -Unique
+)
+Check "listeners on port $Port <= 1" ($owners.Count -le 1) ("found " + $owners.Count)
 
 $listening = Test-PortListening -P $Port
 if (-not $listening -and -not $NoStart) {
-    if ($procs.Count -eq 1) {
-        Write-Info "one python exists but port $Port not listening yet; waiting..."
+    if ($owners.Count -eq 1) {
+        Write-Info "a listener on $Port is coming up; waiting..."
         for ($i = 0; $i -lt 15 -and -not $listening; $i++) {
             Start-Sleep -Milliseconds 500
             $listening = Test-PortListening -P $Port

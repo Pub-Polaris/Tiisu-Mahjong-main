@@ -18,8 +18,8 @@ function isSevenPairs(hand) {
     return pairs===7;
 }
 
-// 是否tiisuin：14 张全为字牌，且【恰好】东南西北白发中各 2 张（= 11223344556677z）。
-// 注意：不允许多出第 4 张（如某张字牌 3 张 + 和牌凑成 4 张），那不算tiisuin。
+// 是否大七星（tiisuin）：14 张全为字牌，且【恰好】东南西北白发中各 2 张（= 11223344556677z）。
+// 注意：不允许多出第 4 张（如某张字牌 3 张 + 和牌凑成 4 张），那不算大七星。
 function isSevenHonors(hand) {
     if(hand.length!==14)return false;
     for(let t of hand) if(t.suit!=='z') return false;
@@ -176,7 +176,7 @@ class WinChecker {
         }
         if (!handType) return {success:false,reason:'not_formed',msg:'不成形'};
 
-        // tiisuin（字牌七对子）：检测但默认不计分（由 winCtx.tiisuin 决定是否计赋）
+        // 大七星（tiisuin，字牌七对子）：检测；**本身不计分**，触发时由 engine 直接结束本局。
         const sevenHonors = handType === 'seven_pairs' && isSevenHonors(fullHand);
 
         let totalFu=0, activeYaku=[];
@@ -229,7 +229,7 @@ class WinChecker {
                 }catch(e){}
             }
             totalFu+=baseFu;
-            // 七对子：纯正水中月 / tiisuin 命中时【覆盖七对子】，不另计（已确认口径）
+            // 七对子：纯正水中月 命中时【覆盖七对子】，不另计（已确认口径）
             // 纯正水中月：覆盖七对子（自身 70 赋 > 0，不影响门槛）
             const coverSevenPairs = activeYaku.some(y => y.id === 'pure_moon_in_water');
             if(handType==='seven_pairs' && !coverSevenPairs)activeYaku.push({name:'七对子',fu:baseFu});
@@ -272,11 +272,11 @@ class WinChecker {
             }
         }
 
-        // tiisuin（已确认口径 2026-09-26）：【本身不计分】，只是标记。
-        // 触发时由 engine 直接结束本局并回主菜单，同时记统计（做出者+1、其余三家见证+1）。
-        // 注意：门槛判定仍用 totalFu（七对子路径会给 7 赋），所以tiisuin一定能"和"。
+        // 大七星（tiisuin，已确认口径）：【本身不计分】，只是标记。
+        // 触发时由 engine 直接结束整场并回门户，同时记统计（做出者 +1、其余三家见证 +1）。
+        // 注意：门槛判定仍用 totalFu（七对子路径会给 7 赋），所以大七星一定能"和"。
 
-        // tiisuin无视 7 赋起和门槛：它不计分，而是直接结束本局（由 engine 处理）
+        // 大七星无视 7 赋起和门槛：它不计分，而是直接结束本局（由 engine 处理）
         if(!sevenHonors && totalFu<this.baseFu)return {success:false,reason:'no_yaku',msg:'赋数不足',totalFu,activeYaku,sevenHonors};
 
         // ── 听牌型奖赏（5.5）与全带赤特判（6.1）──
@@ -296,7 +296,7 @@ class WinChecker {
             // 固定点数役（人和 7000 / 三国将副露 7000 等）：直接采用固定点数
             specialPoints = fxYaku.fixedPoints;
         } else if (sevenHonors) {
-            // tiisuin（6.2.1 双役满 70000）：仅在「tiisuin算赋」开启时计分；否则不计分（0 赋）
+            // 大七星（6.2.1）：**不计分**（无条件）—— 由 engine 直接结束整场
             specialPoints = null;
         } else if(additive){
             const otherFu = activeYaku.filter(y => y.id !== 'chidaichi' && y.id !== 'water_drop').reduce((a,y) => a + y.fu, 0);

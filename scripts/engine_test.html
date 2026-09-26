@@ -12,7 +12,7 @@ pre{white-space:pre-wrap;font-size:13px;line-height:1.5}
 </head>
 <body>
 <h3 id="summary">running</h3>
-<iframe id="f" src="../index.html" style="width:1px;height:1px"></iframe>
+<iframe id="f" src="../index.html?nostart=1" style="width:1px;height:1px"></iframe>
 <pre id="out"></pre>
 <script>
 var YT = { pass:0, fail:0, lines:[], cases:[] };
@@ -43,6 +43,35 @@ function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
         var ProtoGame = Object.getPrototypeOf(g);
         // 隔离：停掉 iframe 内的 AI/定时器，避免测试期间后台推进、以及退出时崩溃
         try { g._demoMode = false; g._allAI = false; g.clearAllTimers(); g.hideActionBar(); g.state = 'idle'; } catch(e) {}
+        // 测试隔离：拦截 iframe 内的 /api/stats 与 /api/state，
+        // 避免断言污染 stats.json（累计统计）与 state.json（会话存档）
+        var STATS_CALLS = [];
+        var STATE_CALLS = [];
+        try {
+            var _origFetch = w.fetch.bind(w);
+            w.fetch = function (url, opts) {
+                try {
+                    if (typeof url === 'string') {
+                        var stub = { ok: true, status: 200,
+                            json: function () { return Promise.resolve({}); },
+                            text: function () { return Promise.resolve('{}'); } };
+                        if (url.indexOf('/api/stats') !== -1) {
+                            var body = {};
+                            try { body = JSON.parse((opts && opts.body) || '{}'); } catch (e2) {}
+                            STATS_CALLS.push(body);
+                            return Promise.resolve(stub);
+                        }
+                        if (url.indexOf('/api/state') !== -1) {
+                            var body2 = {};
+                            try { body2 = JSON.parse((opts && opts.body) || '{}'); } catch (e3) {}
+                            STATE_CALLS.push(body2);
+                            return Promise.resolve(stub);
+                        }
+                    }
+                } catch (e2) {}
+                return _origFetch(url, opts);
+            };
+        } catch (e) {}
         var mkP = function(n, human){ var p = Object.create(ProtoPlayer); p.name=n; p.isHuman=!!human;
             p.hand=[]; p.discards=[]; p.melds=[]; p.kans=[]; p.ankanCount=0; p.minkanCount=0; p.firstTurn=true; return p; };
 
@@ -131,12 +160,23 @@ function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
             ytOk('比赛结束', g.matchOver === true && g.state === 'ended', '');
         });
 
-        // ══════ 6. tiisuin直接获胜 ══════
-        ytT('tiisuin：开启算赋时 → 双役满 70000 + 立即结束整场', function(){
-            g.setMode(4); /* tiisuin已无条件触发，无开关 */
-            g.declareWin(0, false, { totalFu:70, sevenHonors:true, activeYaku:[{name:'tiisuin',fu:70}] }, 1);
+        // ══════ 6. 大七星（tiisuin）直接获胜 ══════
+        ytT('大七星 · 无条件：不计分 + 立即结束整场 + 回门户钩子 + 统计不落盘', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            var before = g.scores.slice();
+            STATS_CALLS.length = 0;
+            var hookArg = null;
+            var savedHook = w.onMatchOver;
+            w.onMatchOver = function(why){ hookArg = why; };
+            g.declareWin(0, false, { totalFu:70, sevenHonors:true, activeYaku:[{name:'大七星',fu:70}] }, 1);
+            w.onMatchOver = savedHook;
             ytOk('整场结束', g.matchOver === true, 'matchOver='+g.matchOver);
-            
+            ytOk('不计分（四家分数不变）', JSON.stringify(g.scores) === JSON.stringify(before), 'scores='+g.scores);
+            ytEq('回门户钩子收到原因', hookArg, '大七星');
+            ytEq('统计上报被拦截 2 次（做出+局数）', STATS_CALLS.length, 2);
+            var wits = STATS_CALLS.filter(function(b){ return b.witness; });
+            ytEq('其中 1 次带 witness（其余三家）', wits.length, 1);
+            ytEq('witness 为 3 家', wits.length ? wits[0].witness.length : -1, 3);
         });
 
         // ══════ 7. 拔厄 ══════
@@ -242,6 +282,65 @@ function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
             g.players[0].hand = T('123m456p789s1122z');
             g.state = 'idle';
             w.renderActionArea();
+        });
+
+        ytT('终局判定 · 未达标只补「一手」延长（南入/西入/北增各 1 次）', function(){
+            // 全庄战：北场打完（roundWindIdx=4）且未达标 → 进入延长，只打一手
+            g.setMode(16);
+            g.finalWindIdx = 3; g.initialPoints = 77000;
+            g.scores = [76000, 76000, 76000, 76000];
+            g.handsPlayed = 0; g.matchOver = false; g.gameOver = false; g.rankPoints = [0,0,0,0];
+            g.players.forEach(function(p){ p.seatWind='east'; p.discards=[]; p.melds=[]; p.minkanCount=0; p.ankanCount=0; });
+            g.roundWindIdx = 4;
+            ytOk('未达标 → 不终局，进入延长', g.advanceRound() !== false, '');
+            ytOk('已标记为延长中', g._inExtension === true, '');
+            ytOk('延长局标签为「北增1局」', g.roundLabel() === '北增1局', g.roundLabel());
+            // 延长的那一手打完 → 立即终局（不再看分数、不再有第二个延长）
+            g.roundWindIdx = 4;
+            ytEq('延长一手打完 → 终局', g.advanceRound(), false);
+            ytOk('matchOver 置位', g.matchOver === true, '');
+            ytEq('安全上限 = modeTarget + 16', g.modeTarget + 16, 32);
+
+            // 反向：最后一场已达标 → 不延长，直接终局
+            g.setMode(16);
+            g.finalWindIdx = 3; g.initialPoints = 77000;
+            g.scores = [78000, 76000, 76000, 76000];
+            g.handsPlayed = 0; g.matchOver = false; g.gameOver = false; g.rankPoints = [0,0,0,0];
+            g.players.forEach(function(p){ p.seatWind='east'; p.discards=[]; p.melds=[]; p.minkanCount=0; p.ankanCount=0; });
+            g.roundWindIdx = 4;
+            ytEq('已达标 → 直接终局（不延长）', g.advanceRound(), false);
+            ytOk('未进入延长', g._inExtension === false, '');
+
+            // 半庄战未达标 → 西入；东风战未达标 → 南入
+            g.setMode(8);
+            g.finalWindIdx = 1; g.initialPoints = 49000;
+            g.scores = [48000, 48000, 48000, 48000];
+            g.handsPlayed = 0; g.matchOver = false; g.gameOver = false; g.rankPoints = [0,0,0,0];
+            g.players.forEach(function(p){ p.seatWind='east'; p.discards=[]; p.melds=[]; p.minkanCount=0; p.ankanCount=0; });
+            g.roundWindIdx = 2;
+            g.advanceRound();
+            ytOk('半庄战未达标 → 延长标签为「西入」', g.roundLabel().indexOf('西入') === 0, g.roundLabel());
+
+            g.setMode(4);
+            g.finalWindIdx = 0; g.initialPoints = 49000;
+            g.scores = [48000, 48000, 48000, 48000];
+            g.handsPlayed = 0; g.matchOver = false; g.gameOver = false; g.rankPoints = [0,0,0,0];
+            g.players.forEach(function(p){ p.seatWind='east'; p.discards=[]; p.melds=[]; p.minkanCount=0; p.ankanCount=0; });
+            g.roundWindIdx = 1;
+            g.advanceRound();
+            ytOk('东风战未达标 → 延长标签为「南入」', g.roundLabel().indexOf('南入') === 0, g.roundLabel());
+
+            // 连带 bug 回归：打满 modeTarget 手但尚未收口时，不得被冻结（旧守卫会 return false）
+            g.setMode(16);
+            g.finalWindIdx = 3; g.initialPoints = 77000;
+            g.handsPlayed = 16;                 // 已打满排程手数
+            g.gameOver = true;                  // 每局和牌都会置 true
+            g.matchOver = false;
+            g.roundWindIdx = 2;                 // 但还在西场（未到收口）
+            g.scores = [77000, 77000, 77000, 77000];
+            g.rankPoints = [0,0,0,0];
+            g.players.forEach(function(p){ p.seatWind='east'; p.discards=[]; p.melds=[]; p.minkanCount=0; p.ankanCount=0; });
+            ytEq('打满 16 手但未收口 → 仍可继续（不被冻结）', g.advanceRound(), true);
         });
 
         ytDefineRun();

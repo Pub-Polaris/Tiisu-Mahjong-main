@@ -25,7 +25,29 @@ DEFAULT_SETTINGS = {
     "showWallViewer": False, # 牌山查看器（调试选项，默认关 → 下方区域空出）
     "recordTiles": False     # 默认记录牌型
 }
-DEFAULT_STATS = {"tiisuinCount": 0, "wins": 0, "rounds": 0, "byPlayer": {}}
+DEFAULT_STATS = {"tiisuinCount": 0, "witnessCount": 0, "wins": 0, "rounds": 0, "byPlayer": {}}
+
+# 旧键 → 新键（2026-09-27 由 daxingqi 统一改名为 tiisuin）：
+# 统计文件是累计计数，读入时自动折算，避免新旧键并存出现混合态。
+_LEGACY_STAT_KEYS = {"daxingqiCount": "tiisuinCount"}
+
+def _normalize_stats(cur):
+    """把旧命名的统计键并入新命名，并删除旧键。幂等。"""
+    if not isinstance(cur, dict):
+        return json.loads(json.dumps(DEFAULT_STATS))
+    for old, new in _LEGACY_STAT_KEYS.items():
+        if old in cur:
+            cur[new] = int(cur.get(new, 0)) + int(cur.get(old, 0) or 0)
+            del cur[old]
+    bp = cur.get("byPlayer")
+    if isinstance(bp, dict):
+        for name, e in bp.items():
+            if not isinstance(e, dict):
+                continue
+            if "daxingqi" in e:
+                e["tiisuin"] = int(e.get("tiisuin", 0)) + int(e.get("daxingqi", 0) or 0)
+                del e["daxingqi"]
+    return cur
 
 def _read_json(path, default):
     if not os.path.isfile(path):
@@ -180,11 +202,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def _handle_stats(self, data):
         cur = DEFAULT_STATS.copy()
         cur.update(_read_json(STATS_PATH, {}))
+        cur = _normalize_stats(cur)
         if data:
             if data.get('kind') == 'reset':
-                cur = DEFAULT_STATS.copy()
+                cur = json.loads(json.dumps(DEFAULT_STATS))
             else:
                 cur['tiisuinCount'] = int(cur.get('tiisuinCount', 0)) + int(data.get('tiisuin', 0) or 0)
+                cur['witnessCount'] = int(cur.get('witnessCount', 0)) + len(data.get('witness') or [])
                 cur['wins'] = int(cur.get('wins', 0)) + int(data.get('wins', 0) or 0)
                 cur['rounds'] = int(cur.get('rounds', 0)) + int(data.get('rounds', 0) or 0)
                 bp = cur.get('byPlayer') or {}
@@ -194,6 +218,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     e['wins'] = int(e.get('wins', 0)) + int(data.get('wins', 0) or 0)
                     e['tiisuin'] = int(e.get('tiisuin', 0)) + int(data.get('tiisuin', 0) or 0)
                     bp[pn] = e
+                # 大七星见证：同局其他三家各 +1
+                for wn in (data.get('witness') or []):
+                    we = bp.get(wn) or {}
+                    we['witness'] = int(we.get('witness', 0)) + 1
+                    bp[wn] = we
                 cur['byPlayer'] = bp
             _write_json(STATS_PATH, cur)
         self.send_response(200)

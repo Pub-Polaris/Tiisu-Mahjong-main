@@ -131,6 +131,9 @@ class TiisuMahjong {
         this._westDiscardCount = 0;  // 拔厄（4.3）：本局打出西风的家数
         this._lastWestDiscarder = -1;// 最后打出西风的家
         this._weekEndHandled = false;
+        // 延长局（8.2）：最后一场打完但 1 位未达标 → 只补「一手」（南入/西入/北增），
+        // 该手以和牌或流局结束即终局。各延长只发生 1 次。
+        this._inExtension = false;
     }
 
     // 装配层调用：config 为 ike.json 解析结果，checker 为 WinChecker 实例
@@ -1119,10 +1122,9 @@ class TiisuMahjong {
         this.turnIndex = winIdx;
         const winner = this.players[winIdx];
 
-        // tiisuin（6.2.1）：开启「tiisuin算赋」时 = 双役满 70000 点 + 比赛场做出直接获胜
-        // （立即结束整场）；未开启时按普通七对子正常结算，不触发直接获胜。
+        // 大七星（tiisuin，6.2.1）：做成七种字牌七对子 → **无条件** 直接结束整场（不计分、无开关）。
         if (result && result.sevenHonors) {
-            this.declareDaxingqi(winIdx, discarderIdx);
+            this.declareTiisuin(winIdx, discarderIdx);
             return;
         }
 
@@ -1180,11 +1182,12 @@ class TiisuMahjong {
         this.scheduleNextRound(2500);
     }
 
-    // tiisuin：比赛场做出直接获胜 —— 立即结束整场、回门户（由 UI 处理跳转）、记统计
-    declareDaxingqi(winIdx, discarderIdx) {
+    // 大七星（tiisuin）：做成七种字牌七对子 —— 立即结束整场、回门户（由 UI 处理跳转）、记统计
+    declareTiisuin(winIdx, discarderIdx) {
+        const wasDemo = !!this._demoMode;   // 演示模式下不跳回门户（下方 guard 用）
         const w = this.players[winIdx];
         this.revealHands = true;
-        gameLog('第' + this.handNumber + '局 ★tiisuin★ ' + w.name + ' 做出七种字牌七对子 → 直接获胜');
+        gameLog('第' + this.handNumber + '局 ★大七星★ ' + w.name + ' 做出七种字牌七对子 → 直接获胜');
         try {
             fetch('/api/stats', {
                 method: 'POST',
@@ -1199,13 +1202,13 @@ class TiisuMahjong {
         } catch (e) {}
         this.reportStatsRoundOnce();
         if (this.recordTiles) {
-            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, pi === winIdx ? 'tiisuin直接获胜' : '见证', '');
+            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, pi === winIdx ? '大七星直接获胜' : '见证', '');
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
         this.juFinished = true;
         if (typeof renderAll === 'function') renderAll();
         if (typeof showMsg === 'function') {
-            showMsg('<div style="text-align:center">★🏆 <b>' + w.name + '</b> 做出 <b>tiisuin</b>（七种字牌七对子）🏆★<br>' +
+            showMsg('<div style="text-align:center">★🏆 <b>' + w.name + '</b> 做出 <b>大七星</b>（七种字牌七对子）🏆★<br>' +
                 '<span style="font-size:14px">比赛场做出直接获胜 —— 本场立即结束</span><br>' +
                 '<span style="font-family:Consolas,monospace">' + (handToStr(w.hand) || '') + '</span></div>', true);
         }
@@ -1223,6 +1226,8 @@ class TiisuMahjong {
                 keepalive: true
             }).catch(() => {});
         } catch (e) {}
+        // 「回门户」：由 UI 层实现（engine 不直接依赖 DOM）。
+        if (!wasDemo && typeof onMatchOver === 'function') onMatchOver('大七星');
     }
 
     // 出岭（击飞，8.2）：分数跌破 0 → 记 −7000 点并立即终局。返回是否触发。
@@ -1245,13 +1250,15 @@ class TiisuMahjong {
                         keepalive: true
                     }).catch(() => {});
                 } catch (e) {}
+                // 「回门户」：由 UI 层实现。
+                if (typeof onMatchOver === 'function') onMatchOver('出岭');
                 return true;
             }
         }
         return false;
     }
 
-    // rounds 统计只记一次（tiisuin/流局等非和牌路径用）
+    // rounds 统计只记一次（大七星/流局等非和牌路径用）
     reportStatsRoundOnce() {
         try {
             fetch('/api/stats', {
@@ -1459,7 +1466,9 @@ class TiisuMahjong {
                 honba: this.honba,
                 roundWindIdx: this.roundWindIdx,
                 dealerCount: this.dealerCount,
-                inProgress: this.handsPlayed < this.modeTarget
+                // 终局判定已改为「场风走完 + 1 位达标 / 延长一手」，不再是「打满 modeTarget 手」，
+                // 故这里用 matchOver 表示是否还有未完成的对局（否则连庄多打时会误标为已结束）。
+                inProgress: !this.matchOver
             };
             // 先读取现存 game_cmd 再写，避免覆盖
             fetch('/api/state').then(r => r.json()).then((st) => {
@@ -1795,20 +1804,24 @@ class TiisuMahjong {
         this.matchOver = false;
         this.juFinished = false;
         this._weekEndHandled = false;
+        this._inExtension = false;
     }
 
     roundLabel() {
         const wn = ['东','南','西','北'];
-        const wind = this.roundWindIdx % 4;        // 场风
         const n = (this.dealerCount % 4) + 1;      // 本场内的第几手（1-4）
-        return wn[wind] + n + '局';
+        if (this._inExtension) {
+            // 延长局：南入 / 西入 / 北增（全庄战北场之后用「北增」）
+            const w = this.roundWindIdx % 4;
+            return (w === 0 ? '北增' : wn[w] + '入') + n + '局';
+        }
+        return wn[this.roundWindIdx % 4] + n + '局';
     }
 
     // 一局结束：推进局数 / 检查终局 / 结算段位点
     advanceRound() {
-        // 已终局（含tiisuin直接获胜 / 出岭）则不再推进
+        // 已终局（含大七星直接获胜 / 出岭 / 场次收口）则不再推进
         if (this.matchOver) return false;
-        if (this.gameOver && this.handsPlayed >= this.modeTarget) return false;
         this.handsPlayed++;
         this.reportRound();        // 每手统一记一次 rounds
         this.saveSessionState();   // 存档必须在 handsPlayed 更新之后，inProgress 才准确
@@ -1817,12 +1830,22 @@ class TiisuMahjong {
         const top = rank[0].s;
         let over = false;
         if (this.modeTarget === 1) {
-            over = true;                                          // 一局制：一手即终
-        } else if (this.roundWindIdx > this.finalWindIdx && top >= this.initialPoints) {
-            // 场风走完 + 1 位达到初始点数 → 终局（8.2）；否则延长（再打一圈）
+            over = true;                       // 一局制：一手即终
+        } else if (this._inExtension) {
+            // 延长的那一手已打完（和牌或流局）→ 立即终局（不再看分数）
             over = true;
+        } else if (this.roundWindIdx > this.finalWindIdx) {
+            // 最后一场打完：1 位达标 → 终局；未达标 → 只补一手（南入/西入/北增）
+            if (top >= this.initialPoints) {
+                over = true;
+            } else {
+                this._inExtension = true;      // 各延长只发生 1 次
+                gameLog('未达标 → 进入延长（' + this.roundLabel() + '），仅打一手');
+            }
         }
-        if (this.handsPlayed >= this.modeTarget * 6) over = true;  // 安全上限，避免无限延长
+        // 防跑飞兜底：正常由「场风收口 + 延长一手」结束；连庄由「七日终战」约束。
+        // 已确认口径 2026-09-27：不需要很大。
+        if (this.handsPlayed >= this.modeTarget + 16) over = true;
 
         if (over) {
             this.state = 'ended';
@@ -1842,6 +1865,8 @@ class TiisuMahjong {
                     keepalive: true
                 }).catch(() => {});
             } catch(e) {}
+            // 「回门户」：由 UI 层实现。
+            if (typeof onMatchOver === 'function') onMatchOver('终局');
             return false;
         }
         return true;
@@ -1919,6 +1944,7 @@ class TiisuMahjong {
         this.handNumber = 0;
         this.roundWindIdx = 0;
         this.dealerCount = 0;
+        this._inExtension = false;
         this.updateSeatWinds();
         try {
             fetch('/api/state', {

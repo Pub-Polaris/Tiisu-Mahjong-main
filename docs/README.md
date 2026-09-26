@@ -2,7 +2,7 @@
 
 > **摘要**：本项目全部文档的入口与"先读哪份"路径。
 > **面向**：通用（北极星 / opencode / DSH / 美术）。
-> **基线**：代码 `P:\Playground`，文档版本 `260926`（2026-09-26），对应备份 `backup_20260927_011140.tar.gz`。
+> **基线**：代码 `P:\Playground`，文档版本 `260926`（2026-09-26），对应备份 `backup_20260927_053053.tar.gz`。
 
 ## 目录
 
@@ -63,8 +63,8 @@
 | `AGCOMMIT_CHAIN.MD` | 两个 coding agent（dsh / opencode）的**改动链条**：每次提交一行摘要 + trailer 约定。**按需查，不进必读清单** |
 | `CLAUDE.md` | 兼容入口（内容为一行 `AGENTS.md`），供读取 `CLAUDE.md` 的工具使用 |
 | `scripts/run_all.py` / `run_all.cmd` | **一键校验**：yaku 断言 + engine 断言 + N 局全自动冒烟（推荐用 `.py`，避免 AMSI 崩溃） |
-| `scripts/yaku_test.html` / `run_yaku_test.ps1` | 役种 / 赋 / 点数断言（49 用例 · 129 断言） |
-| `scripts/engine_test.html` / `run_engine_test.ps1` | 引擎规则断言（17 用例 · 57 断言） |
+| `scripts/yaku_test.html` / `run_yaku_test.ps1` | 役种 / 赋 / 点数断言（51 用例 · 133 断言） |
+| `scripts/engine_test.html` / `run_engine_test.ps1` | 引擎规则断言（18 用例 · 73 断言） |
 | `scripts/smoke.ps1` | 项目健康冒烟（启动、渲染、N 局全自动） |
 | `scripts/syntax_probe.html` | 语法探针（`new Function` 判定 `src/*.js` 可解析） |
 
@@ -128,4 +128,4 @@
 
 ---
 
-> 页脚：文档版本 `260926`（2026-09-26） · 对应备份 `backup_20260927_011140.tar.gz`
+> 页脚：文档版本 `260926`（2026-09-26） · 对应备份 `backup_20260927_053053.tar.gz`
