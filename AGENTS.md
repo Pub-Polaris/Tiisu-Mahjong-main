@@ -42,7 +42,7 @@ Shell 为 **PowerShell 5.1**（不支持 `&&`，用 `;` 或 `cmd1; if ($?) { cmd
 ```powershell
 cd P:\Playground
 $ts = Get-Date -Format "yyyyMMdd_HHmmss"
-tar -czf "backup\backup_$ts.tar.gz" server.py run.cmd portal.html debug.html index.html ike.json settings.json state.json stats.json src mj_tiles docs
+tar -czf "backup\backup_$ts.tar.gz" server.py run.cmd portal.html debug.html index.html ike.json settings.json state.json stats.json src mj_tiles scripts docs
 ```
 
 ### 2.2 启动服务器（先确保只有一个实例）
@@ -92,7 +92,6 @@ Select-String -Path "$env:TEMP\x.html" -Pattern 'class="tile clickable"' | Measu
 ```
 
 `--virtual-time-budget`：普通页面 20000–30000；全自动对局（`?auto=1`）90000–180000。
-
 ### 2.5 页面与参数
 
 | 页面 | 用途 |
@@ -100,6 +99,34 @@ Select-String -Path "$env:TEMP\x.html" -Pattern 'class="tile clickable"' | Measu
 | `portal.html` | 门户：模式选择、设置、统计、文档入口 |
 | `index.html` | 游戏主页面；参数 `?mode=N`、`&test=1`、`?auto=1&mode=N`、`?scoretest=1` |
 | `debug.html` | 调试台：运行时命令 + 持久化设置 |
+
+
+### 2.6 git 与远程仓库
+
+本仓库**已上 GitHub**（2026-09-26 起），版本载体为 **git 提交 + `backup/*.tar.gz` 双轨**：
+
+| 项 | 值 |
+|---|---|
+| 远程仓库 | `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`（公开，MIT） |
+| 默认分支 | `main` |
+| 本地仓库 | `P:\Playground\.git`（实际落在 `\\SakuraNAS\Vol3\Playground\.git`） |
+| 提交身份 | 仓库级 `Pub-Polaris` / `Pub-Polaris@users.noreply.github.com` |
+| 提交历史 | `8a3eb4d` 初始化；`f29bffb` 合并远端 `Initial commit`（保留 LICENSE） |
+
+**`.gitignore` 排除项**（不入库）：`backup/`、`logs/`、`state.json`、`settings.json`、`*.zip`。入库体积约 0.54 MB。
+
+> 本机前置：仓库在网络路径上，git 会报 `dubious ownership`，需先执行
+> `git config --global --add safe.directory "%(prefix)///SakuraNAS/Vol3/Playground"`。
+> 推送走 HTTPS（凭据已存于凭据管理器）；**SSH 22 端口在本网络被拒，不要用 SSH**。
+
+**每次改动后**：
+
+```powershell
+cd P:\Playground
+git add -A
+git commit -m "简述改了什么"
+git push origin main
+```
 
 ---
 
@@ -244,7 +271,9 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 3. 若改 `docs/` 路径：同步更新 `portal.html` 文档区、`docs/README.md`、`docs/北极星_(人类)/导航.md`、以及引用该文件的文档。
 4. 若改设置键：同步 `server.py` 的 `DEFAULT_SETTINGS` + `portal.html` + `debug.html`。
 5. 若改役种：`ike.json`（数据）与 `src/winchecker.js` 的 `conditionFn`（判定）**必须配套**。
-6. 本项目**未使用 git**，版本载体为 `backup/*.tar.gz`；不要执行 `git init` 或提交。
+6. **不得对仓库重新 `git init` 或强推覆盖历史**。远程为 `Pub-Polaris/Tiisu-Mahjong-main`（`main` 分支），其 `Initial commit`（MIT LICENSE）必须保留；与远端不一致时用 fetch + merge 解决。版本载体为 **git 提交 + `backup/*.tar.gz` 双轨**，两者都不得移除。
+7. **提交与交付**：一次改动的"交付"= 跑完 `run_all.py` 全绿 → 追加 CHANGELOG → 同步受影响文档与页脚 → 落一份 `backup_*.tar.gz` → **`git commit` 并 `git push origin main`**。只提交不推送（或只备份不提交）都算未交付。
+
 
 ---
 
@@ -266,4 +295,4 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 - DeepSeek Harness 仓库：https://github.com/deepseek-ai/deepseek-harness
 - DeepSeek Harness 文档：https://deepseek-harness.github.io/deepseek-harness/
 
-> 页脚：文档版本 `260926`（2026-09-26） · 对应备份 `backup_20260927_011140.tar.gz`
+> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`

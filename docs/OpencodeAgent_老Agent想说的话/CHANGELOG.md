@@ -20,9 +20,54 @@
 | 260926-06 | 2026-09-26 晚 | 外部审查：规则对照 + 三国将修正 + 工程卫生 | 新增规则对照报告；修 A1；BOM/日志/坏链/重复键；断言 97/97 |
 | 260926-07 | 2026-09-26 深夜 | 规则书全量对齐 + 引擎级测试 | 牌山模型C、流局/连庄全套、双和子跳庄、出岭、段位点、水滴石破等；新增 engine_test + run_all.py |
 | 260926-08 | 2026-09-27 凌晨 | 十三不靠 + 统一流局按钮 | 新增 `isThirteenUnrelated`/`flowOptions`；九种九牌与十三不靠共用一个「流局」按钮；engine 断言 57/57 |
+| 260927-01 | 2026-09-27 | 仓库上 GitHub + 契约同步 git 双轨 | 建 `Pub-Polaris/Tiisu-Mahjong-main`（79 文件）；AGENTS.md 加 2.6 节、红线改写、交付含 push |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
 ---
+
+## 260927-01 — 仓库上 GitHub + 契约同步 git 双轨（2026-09-27）
+
+**主题**：项目从"只有 tar 备份、未使用 git"转为 **git 提交 + `backup/*.tar.gz` 双轨**；`AGENTS.md` 契约随之更正。
+
+### 一、仓库
+
+- 初始化 git 仓库并推送到 **`https://github.com/Pub-Polaris/Tiisu-Mahjong-main`**（公开，MIT）。
+  - 首次提交 `8a3eb4d`（78 文件）；合并远端 `Initial commit`（保留其 LICENSE）后为 `f29bffb`。
+  - 入库 **79 个文件 / 约 0.54 MB**；顶层：`docs/`(18) `mj_tiles/`(33) `scripts/`(8) `src/`(8) + 根文件。
+  - 远端 `main` 已有 `Initial commit`（`LICENSE`，MIT，版权 `2026 公民北极星_Offiicial`）→ 用 **fetch + merge --allow-unrelated-histories** 合入，**未强推覆盖**。
+- 新增 `.gitignore`（本仓库首次入库）：排除 `backup/`、`logs/`、`state.json`、`settings.json`、`*.zip`。
+  - `settings.json` / `state.json` 属本机运行态；`TiisuMJ_Public_Test_20260911.zip` 为对外发包（内含一次性探针），均不入库。
+- 仓库在网络路径（`\\SakuraNAS\Vol3`）上，git 报 `dubious ownership` → 已加全局 `safe.directory`（`%(prefix)///SakuraNAS/Vol3/Playground` 与 `P:/Playground`）。
+- 提交身份用**仓库级**配置（不动全局）：`Pub-Polaris` / `Pub-Polaris@users.noreply.github.com`。
+- 本机 **SSH 22 端口被拒**（`Connection refused`），推送走 HTTPS（凭据存于凭据管理器）。
+
+### 二、README
+
+- 新建仓库根 `README.md`：正文取规则书 **`一、规则概述`** 整章（按 `id="sec2"` 精确定位，HTML→Markdown，段落与全角标点保留原样），
+  顶部加 `# 七子麻将 · Tiisu Mahjong`，把原章末的【简略特色】整理为项目符号列表。
+- 其后追加 **AI 声明**（口语化）：规则为 Pub-Polaris 原创，代码由 AI 协作实现（opencode / DeepSeek Harness）；
+  要点为「规则书是权威」「AI 会犯错」「缺口清单在 `docs/`」「规则的最终解释权在作者」。
+- 已验证 GitHub 仓库页正确渲染 README（含该声明）。
+
+### 三、`AGENTS.md` 修正
+
+| # | 位置 | 改动 |
+|---|---|---|
+| 1 | 2.1 备份清单 | tar 清单末尾补 **`scripts`**（原清单漏了它，导致验收工具本身不入备份） |
+| 2 | 新增 **2.6 git 与远程仓库** | 仓库地址 / 分支 / 提交身份 / `.gitignore` 排除项 / `safe.directory` 前置 / SSH 不可用 / 提交推送命令 |
+| 3 | 六、红线 6 | 原为「本项目**未使用 git**……不要执行 `git init`」→ 改为「**不得重新 `git init` 或强推覆盖历史**；版本载体为 git 提交 + tar 备份**双轨**」 |
+| 4 | 七、新增 7.7 | **提交与交付**：跑全绿 → 追加 CHANGELOG → 同步文档与页脚 → 落 tar 备份 → **`git commit` 并 `git push origin main`**；只提交不推送或只备份不提交都算未交付 |
+| 5 | 页脚 | 文档版本 `260926` → `260927`（备份名不变） |
+
+### 四、已知未做 / 与文档的落差
+
+- `docs/` 内多处仍称"未使用 git、版本载体为 `backup/*.tar.gz`"（含本文件下方旧条目、`docs/README.md`、`docs/DSH/项目交接.md`）→ **本次未改**，留待统一清理。
+- `docs/README.md`、`docs/北极星_(人类)/导航.md` 的文档分区表仍写 `docs/北极星/`、`docs/OpencodeAgent/`（实际目录带 `_(人类)` / `_老Agent想说的话`）→ **本次未改**。
+
+### 五、验收
+
+- `AGENTS.md` 结构与中文完好（298 行、UTF-8 无 BOM、行尾 CRLF、小节顺序 2.1→2.6 连续）；旧陈述「本项目未使用 git」已从正文清除；页脚版本戳已更新。
+
 
 ## 260926-08 — 十三不靠 + 统一流局按钮（2026-09-27 凌晨）
 
@@ -575,4 +620,4 @@
 - 大七星：已实现判定，默认不计分（可开启）。
 - 双役满 70000 点数档：未实现（上限 35000）。
 
-> 页脚：文档版本 `260926`（2026-09-26） · 对应备份 `backup_20260927_011140.tar.gz`
+> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
