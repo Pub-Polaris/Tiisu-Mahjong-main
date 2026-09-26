@@ -20,12 +20,12 @@ DEFAULT_SETTINGS = {
     "thinkSeconds": 30,
     "optionalYaku": [],      # 已启用的可选役 id 列表
     "showMa": False,         # 马牌(岭上)显示
-    "daxingqi": False,       # 大七星会不会算赋（Y=true / N=false）
+
     "showDebug": False,      # 游戏页调试面板默认显示
     "showWallViewer": False, # 牌山查看器（调试选项，默认关 → 下方区域空出）
     "recordTiles": False     # 默认记录牌型
 }
-DEFAULT_STATS = {"daxingqiCount": 0, "wins": 0, "rounds": 0, "byPlayer": {}}
+DEFAULT_STATS = {"tiisuinCount": 0, "wins": 0, "rounds": 0, "byPlayer": {}}
 
 def _read_json(path, default):
     if not os.path.isfile(path):
@@ -176,7 +176,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         # 回写 JSON（前端 debug.html 用 .json() 读取返回）
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
-    # ── 统计：GET 返回累计；POST 累加（daxingqiCount/wins/rounds/byPlayer）──
+    # ── 统计：GET 返回累计；POST 累加（tiisuinCount/wins/rounds/byPlayer）──
     def _handle_stats(self, data):
         cur = DEFAULT_STATS.copy()
         cur.update(_read_json(STATS_PATH, {}))
@@ -184,7 +184,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if data.get('kind') == 'reset':
                 cur = DEFAULT_STATS.copy()
             else:
-                cur['daxingqiCount'] = int(cur.get('daxingqiCount', 0)) + int(data.get('daxingqi', 0) or 0)
+                cur['tiisuinCount'] = int(cur.get('tiisuinCount', 0)) + int(data.get('tiisuin', 0) or 0)
                 cur['wins'] = int(cur.get('wins', 0)) + int(data.get('wins', 0) or 0)
                 cur['rounds'] = int(cur.get('rounds', 0)) + int(data.get('rounds', 0) or 0)
                 bp = cur.get('byPlayer') or {}
@@ -192,7 +192,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 if pn:
                     e = bp.get(pn) or {}
                     e['wins'] = int(e.get('wins', 0)) + int(data.get('wins', 0) or 0)
-                    e['daxingqi'] = int(e.get('daxingqi', 0)) + int(data.get('daxingqi', 0) or 0)
+                    e['tiisuin'] = int(e.get('tiisuin', 0)) + int(data.get('tiisuin', 0) or 0)
                     bp[pn] = e
                 cur['byPlayer'] = bp
             _write_json(STATS_PATH, cur)

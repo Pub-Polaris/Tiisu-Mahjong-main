@@ -180,9 +180,9 @@ P:\Playground\
 
 | 文件 | 写入方 | 内容 |
 |---|---|---|
-| `settings.json` | `portal.html` / `debug.html` | `thinkSeconds` / `optionalYaku` / `showMa` / `daxingqi` / `showDebug` / `showWallViewer` / `recordTiles` |
+| `settings.json` | `portal.html` / `debug.html` | `thinkSeconds` / `optionalYaku` / `showMa` / `tiisuin` / `showDebug` / `showWallViewer` / `recordTiles` |
 | `state.json` | `engine.js` | 会话存档（`playerUUID`/`modeTarget`/`handsPlayed`/`handNumber`/`scores`/`dealerIndex`/`honba`/`roundWindIdx`/`dealerCount`/`inProgress`）+ `game_cmd` |
-| `stats.json` | `engine.js` | `daxingqiCount` / `wins` / `rounds` / `byPlayer` |
+| `stats.json` | `engine.js` | `tiisuinCount` / `wins` / `rounds` / `byPlayer` |
 
 ---
 
@@ -212,8 +212,8 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 
 | 步骤 | 断言内容 |
 |---|---|
-| yaku | `scripts/yaku_test.html`：49 用例 / 129 断言（役种、赋、点数、赐马、全带赤、南北通 +7000、水滴石破、国士两特例、大七星、美人七对、驷马越岭、四明杠、连庄奖励、段位点） |
-| engine | `scripts/engine_test.html`：17 用例 / 57 断言（牌山模型 C、场次初始点数与终局场风、门风轮转、四风连打、三家和流局、十三不靠、双和子跳庄、出岭、大七星直接获胜、拔厄、未听返杠、连庄奖励、赐马口径、统一流局按钮渲染） |
+| yaku | `scripts/yaku_test.html`：49 用例 / 129 断言（役种、赋、点数、赐马、全带赤、南北通 +7000、水滴石破、国士两特例、tiisuin、美人七对、驷马越岭、四明杠、连庄奖励、段位点） |
+| engine | `scripts/engine_test.html`：17 用例 / 57 断言（牌山模型 C、场次初始点数与终局场风、门风轮转、四风连打、三家和流局、十三不靠、双和子跳庄、出岭、tiisuin直接获胜、拔厄、未听返杠、连庄奖励、赐马口径、统一流局按钮渲染） |
 | smoke | `index.html?auto=1&mode=4` 连跑 N 局：无 JS 报错 + 回合已渲染 |
 
 单项：`scripts/run_yaku_test.ps1 -Quiet` / `scripts/run_engine_test.ps1 -Quiet` / `scripts/smoke.ps1 -Runs N`。

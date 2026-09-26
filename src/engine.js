@@ -118,14 +118,13 @@ class TiisuMahjong {
             thinkSeconds: 30,
             optionalYaku: [],
             showMa: false,
-            daxingqi: false,
-            showDebug: false
+                showDebug: false
         };
         this.lastRonMulti = [];   // 本局荣和多家并存的赋数列表（用于"多家和牌只显赋数"）
 
         this._kanThisTurn = false;   // 本巡是否开过杠（岭上炮/杠立）
         // ── 2026-09-26 规则书对齐新增状态 ──
-        this.matchOver = false;      // 整场比赛是否已结束（大七星直接获胜 / 出岭）
+        this.matchOver = false;      // 整场比赛是否已结束（tiisuin直接获胜 / 出岭）
         this.juFinished = false;     // 本局是否已结束（避免重复调度）
         this.initialPoints = 0;      // 场次初始点数（东风/半庄 49000；全庄 77000）
         this.rankPoints = [0,0,0,0]; // 段位点（8.3，每场结算累计）
@@ -156,7 +155,7 @@ class TiisuMahjong {
 
     get humanIdx() { return this.players.findIndex(p => p.isHuman); }
 
-    // 应用设置（可选役 → checker.optionalEnabled；长考/马牌/大七星/记录牌型等存于 this.settings）
+    // 应用设置（可选役 → checker.optionalEnabled；长考/马牌/tiisuin/记录牌型等存于 this.settings）
     applySettings(settings) {
         if (!settings) return;
         this.settings = Object.assign(this.settings, settings);
@@ -439,7 +438,7 @@ class TiisuMahjong {
             waterDrop: !!player._firstTurnTenpai && (selfDraw ? !!player._haiDei : (!selfDraw && this.wall.length === 0)),
             seatWind: player.seatWind,
             roundWind: this.roundWind,
-            daxingqi: !!(this.settings && this.settings.daxingqi)
+            
         };
     }
 
@@ -1120,9 +1119,9 @@ class TiisuMahjong {
         this.turnIndex = winIdx;
         const winner = this.players[winIdx];
 
-        // 大七星（6.2.1）：开启「大七星算赋」时 = 双役满 70000 点 + 比赛场做出直接获胜
+        // tiisuin（6.2.1）：开启「tiisuin算赋」时 = 双役满 70000 点 + 比赛场做出直接获胜
         // （立即结束整场）；未开启时按普通七对子正常结算，不触发直接获胜。
-        if (result && result.sevenHonors && this.settings && this.settings.daxingqi) {
+        if (result && result.sevenHonors) {
             this.declareDaxingqi(winIdx, discarderIdx);
             return;
         }
@@ -1167,7 +1166,7 @@ class TiisuMahjong {
             }
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
-        // 统计（大七星计数 / 和牌 → /api/stats；局数在 advanceRound 里统一记一次）
+        // 统计（tiisuin计数 / 和牌 → /api/stats；局数在 advanceRound 里统一记一次）
         this.reportStats(winIdx, result);
         // 出岭（击飞，8.2）：任一家分数跌至 0 以下 → 该家记 −7000 点并立即终局
         if (this.checkDeungnyeong()) {
@@ -1181,17 +1180,17 @@ class TiisuMahjong {
         this.scheduleNextRound(2500);
     }
 
-    // 大七星：比赛场做出直接获胜 —— 立即结束整场、回门户（由 UI 处理跳转）、记统计
+    // tiisuin：比赛场做出直接获胜 —— 立即结束整场、回门户（由 UI 处理跳转）、记统计
     declareDaxingqi(winIdx, discarderIdx) {
         const w = this.players[winIdx];
         this.revealHands = true;
-        gameLog('第' + this.handNumber + '局 ★大七星★ ' + w.name + ' 做出七种字牌七对子 → 直接获胜');
+        gameLog('第' + this.handNumber + '局 ★tiisuin★ ' + w.name + ' 做出七种字牌七对子 → 直接获胜');
         try {
             fetch('/api/stats', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    daxingqi: 1, wins: 0, rounds: 0,
+                    wins: 0, rounds: 0,
                     player: w.name,
                     witness: this.players.filter((_, i) => i !== winIdx).map(p => p.name)
                 }),
@@ -1200,13 +1199,13 @@ class TiisuMahjong {
         } catch (e) {}
         this.reportStatsRoundOnce();
         if (this.recordTiles) {
-            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, pi === winIdx ? '大七星直接获胜' : '见证', '');
+            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, pi === winIdx ? 'tiisuin直接获胜' : '见证', '');
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
         this.juFinished = true;
         if (typeof renderAll === 'function') renderAll();
         if (typeof showMsg === 'function') {
-            showMsg('<div style="text-align:center">★🏆 <b>' + w.name + '</b> 做出 <b>大七星</b>（七种字牌七对子）🏆★<br>' +
+            showMsg('<div style="text-align:center">★🏆 <b>' + w.name + '</b> 做出 <b>tiisuin</b>（七种字牌七对子）🏆★<br>' +
                 '<span style="font-size:14px">比赛场做出直接获胜 —— 本场立即结束</span><br>' +
                 '<span style="font-family:Consolas,monospace">' + (handToStr(w.hand) || '') + '</span></div>', true);
         }
@@ -1252,7 +1251,7 @@ class TiisuMahjong {
         return false;
     }
 
-    // rounds 统计只记一次（大七星/流局等非和牌路径用）
+    // rounds 统计只记一次（tiisuin/流局等非和牌路径用）
     reportStatsRoundOnce() {
         try {
             fetch('/api/stats', {
@@ -1351,7 +1350,7 @@ class TiisuMahjong {
         else { this.advanceDealer(); }
 
         this.revealHands = true;
-        // 逐胜者日志 / 快照 / 统计（wins/daxingqi 按胜者记；rounds 在 advanceRound 统一记一次）
+        // 逐胜者日志 / 快照 / 统计（wins/tiisuin 按胜者记；rounds 在 advanceRound 统一记一次）
         effective.forEach((w) => {
             const p = this.players[w.playerIdx];
             const yakuStr = (w.result.activeYaku||[]).map(y=>y.name+'='+y.fu).join(' ');
@@ -1403,7 +1402,7 @@ class TiisuMahjong {
             maHtml + body;
     }
 
-    // 大七星 / 和牌 统计上报（/api/stats）。rounds（局数）不在此记，
+    // tiisuin / 和牌 统计上报（/api/stats）。rounds（局数）不在此记，
     // 由 advanceRound 每手统一记一次，避免多家荣和重复累加。
     reportStats(winIdx, result) {
         const winner = this.players[winIdx];
@@ -1414,12 +1413,12 @@ class TiisuMahjong {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     wins: 1,
-                    daxingqi: isSevenHonors ? 1 : 0,
+                    tiisuin: isSevenHonors ? 1 : 0,
                     player: winner.name
                 }),
                 keepalive: true
             }).catch(() => {});
-            if (isSevenHonors) gameLog('大七星！' + winner.name + ' 和牌（字牌七对子）');
+            if (isSevenHonors) gameLog('tiisuin！' + winner.name + ' 和牌（字牌七对子）');
         } catch(e) {}
     }
 
@@ -1496,7 +1495,7 @@ class TiisuMahjong {
     // 不算入起和（checkWin 不含赐马）；倍满/役满（handType=highyaku）不计。
     resolveMa(winner, result) {
         if (result && (result.handType === 'highyaku' ||
-            (result.sevenHonors && this.settings && this.settings.daxingqi))) {
+            (result.sevenHonors))) {
             return { fu: 0, detail: [] };
         }
         const ma = this.rinshan || [];
@@ -1807,7 +1806,7 @@ class TiisuMahjong {
 
     // 一局结束：推进局数 / 检查终局 / 结算段位点
     advanceRound() {
-        // 已终局（含大七星直接获胜 / 出岭）则不再推进
+        // 已终局（含tiisuin直接获胜 / 出岭）则不再推进
         if (this.matchOver) return false;
         if (this.gameOver && this.handsPlayed >= this.modeTarget) return false;
         this.handsPlayed++;
