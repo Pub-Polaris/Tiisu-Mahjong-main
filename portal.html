@@ -69,7 +69,7 @@ a.btn-link:hover{transform:translateY(-2px)}
         </div>
         <div class="row" style="margin-bottom:12px">
             <label class="check"><input type="checkbox" id="setShowMa">显示马牌（岭上/赋马）</label>
-            <label class="check"><input type="checkbox" id="setDaxingqi">大七星（字牌七对子）算赋</label>
+            
             <label class="check"><input type="checkbox" id="setShowDebug">游戏页显示调试面板</label>
             <label class="check"><input type="checkbox" id="setShowWall">显示牌山（调试）</label>
         </div>
@@ -86,9 +86,9 @@ a.btn-link:hover{transform:translateY(-2px)}
     </div>
 
     <div class="card">
-        <h2>📊 大七星 / 对局统计（累计 · 存于 stats.json）</h2>
+        <h2>📊 tiisuin / 对局统计（累计 · 存于 stats.json）</h2>
         <div class="stats-grid">
-            <div class="stat-box"><div class="v" id="stDaxingqi">0</div><div class="k">大七星</div></div>
+            <div class="stat-box"><div class="v" id="stDaxingqi">0</div><div class="k">tiisuin</div></div>
             <div class="stat-box"><div class="v" id="stWins">0</div><div class="k">和牌数</div></div>
             <div class="stat-box"><div class="v" id="stRounds">0</div><div class="k">局数</div></div>
             <div class="stat-box"><div class="v" id="stPlayers">0</div><div class="k">玩家数</div></div>
@@ -160,7 +160,7 @@ async function loadSettings() {
         var s = await api('/api/settings');
         document.getElementById('setThink').value = s.thinkSeconds || 30;
         document.getElementById('setShowMa').checked = !!s.showMa;
-        document.getElementById('setDaxingqi').checked = !!s.daxingqi;
+        
         document.getElementById('setShowDebug').checked = !!s.showDebug;
         document.getElementById('setShowWall').checked = !!s.showWallViewer;
         var en = s.optionalYaku || [];
@@ -174,7 +174,7 @@ async function saveSettings() {
     var s = {
         thinkSeconds: parseInt(document.getElementById('setThink').value) || 30,
         showMa: document.getElementById('setShowMa').checked,
-        daxingqi: document.getElementById('setDaxingqi').checked,
+        
         showDebug: document.getElementById('setShowDebug').checked,
         showWallViewer: document.getElementById('setShowWall').checked,
         optionalYaku: OPT_IDS.filter(function(id){ return document.getElementById('opt_' + id).checked; })
@@ -192,14 +192,14 @@ async function saveSettings() {
 async function loadStats() {
     try {
         var st = await api('/api/stats');
-        document.getElementById('stDaxingqi').textContent = st.daxingqiCount || 0;
+        document.getElementById('stDaxingqi').textContent = st.tiisuinCount || 0;
         document.getElementById('stWins').textContent = st.wins || 0;
         document.getElementById('stRounds').textContent = st.rounds || 0;
         var bp = st.byPlayer || {};
         document.getElementById('stPlayers').textContent = Object.keys(bp).length;
         var rows = Object.keys(bp).map(function(n){
             var e = bp[n] || {};
-            return '· ' + n + '：和牌 ' + (e.wins||0) + ' · 大七星 ' + (e.daxingqi||0);
+            return '· ' + n + '：和牌 ' + (e.wins||0) + ' · tiisuin ' + (e.tiisuin||0);
         });
         document.getElementById('stByPlayer').textContent = rows.length ? rows.join('\n') : '（暂无明细）';
     } catch(e) { console.warn('loadStats failed', e); }

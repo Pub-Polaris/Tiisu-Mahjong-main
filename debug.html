@@ -60,7 +60,7 @@ label{font-size:14px;color:#d8f0cc}
         </div>
         <div class="row">
             <label class="check"><input type="checkbox" id="setShowMa">显示马牌</label>
-            <label class="check"><input type="checkbox" id="setDaxingqi">大七星算赋</label>
+            
             <label class="check"><input type="checkbox" id="setShowDebug">显示调试面板</label>
             <label class="check"><input type="checkbox" id="setRecord">默认记录牌型</label>
             <label class="check"><input type="checkbox" id="setShowWall">显示牌山（调试）</label>
@@ -112,7 +112,7 @@ async function loadSettings() {
         var s = await api('/api/settings');
         document.getElementById('setThink').value = s.thinkSeconds || 30;
         document.getElementById('setShowMa').checked = !!s.showMa;
-        document.getElementById('setDaxingqi').checked = !!s.daxingqi;
+        
         document.getElementById('setShowDebug').checked = !!s.showDebug;
         document.getElementById('setRecord').checked = !!s.recordTiles;
         document.getElementById('setShowWall').checked = !!s.showWallViewer;
@@ -128,7 +128,7 @@ async function saveSettings() {
     var s = {
         thinkSeconds: parseInt(document.getElementById('setThink').value) || 30,
         showMa: document.getElementById('setShowMa').checked,
-        daxingqi: document.getElementById('setDaxingqi').checked,
+        
         showDebug: document.getElementById('setShowDebug').checked,
         recordTiles: document.getElementById('setRecord').checked,
         showWallViewer: document.getElementById('setShowWall').checked,

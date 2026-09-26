@@ -195,7 +195,7 @@ Select-String -Path "$env:TEMP\x.html" -Pattern 'class="tile clickable"' | Measu
 | `WinChecker is not defined` / `TiisuMahjong is not defined` | 脚本未加载完 / 两个 server 争 7777 / 网络抖动 | 只留一个 python 进程；确认 4.3 抓到的是完整页面；初始化已用 `window.load` + 依赖就绪等待 |
 | 牌山张数不随骰子变 | 旧模型残留 | 当前为跳墩模型：活牌山 = `136 − 2S`（见个人指南第五节、CHANGELOG 260822） |
 | 和牌后 `#msg` 空白 | `showMsg` 用 `innerHTML`（支持 HTML 表格），检查传参是否为字符串 | 见 `engine.js` 的 `buildWinOverlay` |
-| 多家荣和重复记账 | 统计口径 | 「局数」只在 `advanceRound()` 记一次；「和牌/大七星」按胜者记 |
+| 多家荣和重复记账 | 统计口径 | 「局数」只在 `advanceRound()` 记一次；「和牌/tiisuin」按胜者记 |
 | 吃牌按钮消失 | 曾因整体重建容器导致 | 现由 `renderActionArea()` 生成，勿再 `outerHTML` 整体替换 |
 | 调试台命令不生效 | 游戏页未开 / `game_cmd` 未清除 | 游戏页每秒轮询 `/api/state`，执行后回写 `game_cmd:null` |
 

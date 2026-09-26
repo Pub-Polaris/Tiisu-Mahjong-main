@@ -131,12 +131,12 @@ function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
             ytOk('比赛结束', g.matchOver === true && g.state === 'ended', '');
         });
 
-        // ══════ 6. 大七星直接获胜 ══════
-        ytT('大七星：开启算赋时 → 双役满 70000 + 立即结束整场', function(){
-            g.setMode(4); g.settings.daxingqi = true;
-            g.declareWin(0, false, { totalFu:70, sevenHonors:true, activeYaku:[{name:'大七星',fu:70}] }, 1);
+        // ══════ 6. tiisuin直接获胜 ══════
+        ytT('tiisuin：开启算赋时 → 双役满 70000 + 立即结束整场', function(){
+            g.setMode(4); /* tiisuin已无条件触发，无开关 */
+            g.declareWin(0, false, { totalFu:70, sevenHonors:true, activeYaku:[{name:'tiisuin',fu:70}] }, 1);
             ytOk('整场结束', g.matchOver === true, 'matchOver='+g.matchOver);
-            g.settings.daxingqi = false;
+            
         });
 
         // ══════ 7. 拔厄 ══════
@@ -182,7 +182,7 @@ function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
         // ══════ 10. 赐马：逐张指示牌命中 +1（≠ min）══════
         ytT('赐马：逐张指示牌命中 +1，手牌张数不影响', function(){
             var gg = Object.create(ProtoGame);
-            gg.settings = { daxingqi:false };
+            gg.settings = {};
             gg.rinshan = [T('4m')[0], T('4m')[0]];      // 两张都指向 5m
             var winner = mkP('甲');
             winner.hand = T('123m456m789m11p555m');      // 手里 m5 ×3

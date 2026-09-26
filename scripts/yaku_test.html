@@ -101,7 +101,7 @@ function ytCheck(o) {
     const minkan = melds.filter(m => m.type === 'minkan' || m.type === 'kakan').length;
     // o.ctx 可覆盖/补充 winCtx（用于验证岭上炮/岭上花/杠立/人和 这类上下文驱动的役）
     const ctx = Object.assign({ seaMoon:false, haiDei:false, riverFish:false, lastTileVisible:0,
-        seatWind:o.seatWind || 'east', roundWind:o.roundWind || 'east', daxingqi:!!o.daxingqi }, o.ctx || {});
+        seatWind:o.seatWind || 'east', roundWind:o.roundWind || 'east',  }, o.ctx || {});
     return YT.checker.checkWin(
         hand, !!o.selfDraw, melds.length > 0 || minkan > 0,
         ankan, minkan, melds, [],
@@ -336,7 +336,7 @@ function ytDefineCases() {
     // ══════ 9. 已知未实现 ══════
     ytT('字一色 — 已实现，但被更高优先权覆盖（记录用）', () => {
         // 结论（真实行为）：全字牌的 4 组面子必然都是刻子 → 必然是四暗刻，
-        // 而四暗刻优先于字一色；四风齐则被四喜和截走；七对形则被大七星截走。
+        // 而四暗刻优先于字一色；四风齐则被四喜和截走；七对形则被tiisuin截走。
         // 因此按已确认的优先权顺序，字一色在实际牌型里【不可达】。
         const r = ytCheck({ hand: ytBuild('z',111,'z',222,'z',555,'z',666,'z',77), selfDraw:true, winTile:'z1' });
         ytOk('和牌成功', r.success, ytBrief(r));
@@ -450,12 +450,12 @@ function ytDefineCases() {
         ytOk('含国士无双', ytHas(r, '国士无双'), ytNames(r));
         ytEq('tokureiBonus = 7000', r.tokureiBonus, 7000);
     });
-    ytT('大七星 · 开关控制（开=双役满70000；关=不计分）', () => {
-        const r0 = ytCheck({ hand: ytBuild('z',11223344556677), winTile:'z1', daxingqi:false });
-        ytOk('sevenHonors 标记为真', r0.sevenHonors === true, ytBrief(r0));
-        ytEq('关闭时 specialPoints = null', r0.specialPoints, null);
-        const r1 = ytCheck({ hand: ytBuild('z',11223344556677), winTile:'z1', daxingqi:true });
-        ytEq('开启时 specialPoints = 70000', r1.specialPoints, 70000);
+    ytT('tiisuin · 不计分、只标记（触发由 engine 无条件处理）', () => {
+        // 2026-09-27 起：tiisuin【不再计分】，winchecker 只标记 sevenHonors；
+        // 触发时由 engine 的 declareDaxingqi() 直接结束本局 + 回门户 + 记统计（无条件，无开关）。
+        const r = ytCheck({ hand: ytBuild('z',11223344556677), winTile:'z1' });
+        ytOk('sevenHonors 标记为真', r.sevenHonors === true, ytBrief(r));
+        ytEq('specialPoints = null（不计分）', r.specialPoints, null);
     });
     ytT('美人七对 · 三元各4张+1饼对（有杠则不成立）', () => {
         const r = ytCheck({ hand: ytBuild('z',5555,'z',6666,'z',7777,'p',11), winTile:'p1' });
@@ -529,7 +529,7 @@ function ytDefineCases() {
         (config.yaku || []).forEach(function(y){ if (y.optional) YT.checker.optionalEnabled.add(y.id); });
         YT.gameFactory = function () {
             const g = Object.create(TiisuMahjong.prototype);
-            g.config = config; g.settings = { daxingqi:false }; g.rinshan = []; g.players = [];
+            g.config = config; g.settings = {}; g.rinshan = []; g.players = [];
             return g;
         };
 

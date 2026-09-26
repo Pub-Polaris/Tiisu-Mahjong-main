@@ -25,9 +25,10 @@
 | 260927-02 | 2026-09-27 | docs 落差清理 + stats.json 出库 | stats.json 加 .gitignore 并取消跟踪；修 CHANGELOG 两条过期陈述；工具调用说明补全目录名与 git 现状 |
 | 260927-03 | 2026-09-27 | 已知坑补两条工具坑 | 新增 6.8（Get-Content -Encoding UTF8 按 GBK 读、写回毁全文）与 6.9（行尾 CRLF/LF 不统一）；工具与环境 7→9 条 |
 | 260927-04 | 2026-09-27 | 修正 3 处文档错误 + 建立 agent 改动链条 | AGENTS.md 42->57、工具调用说明日期、docs/README.md 改跑 run_all.py；双 trailer（Agent/Pair，含北极星）+ pull --rebase 约定 + 根目录 AGCOMMIT_CHAIN.MD |
-| 260927-05 | 2026-09-27 | 项目交接同步现状 | 交接文档「无 git / 无测试 / 役满未实现」等过时陈述对齐；修正水滴石破与大七星两处失实；docs/README.md 登记链条文件 |
+| 260927-05 | 2026-09-27 | 项目交接同步现状 | 交接文档「无 git / 无测试 / 役满未实现」等过时陈述对齐；修正水滴石破与tiisuin两处失实；docs/README.md 登记链条文件 |
 | 260927-06 | 2026-09-27 | CHANGELOG 拆归档 + 待办区重写 | 新增 `CHANGELOG_ARCHIVE.md`（12 个历史条目）；主文件降约 49%；待办区重写并补编号约定 |
 | 260927-07 | 2026-09-27 | 役满优先权反例 + 待办区更正 | 新增 2 条「被更高优先权截走」反例；更正待办区对 4 个役满用例覆盖的失实描述；补记驷马越岭条件 |
+| 260927-08 | 2026-09-27 | tiisuin：去开关 + 改名 | 大七星改为无条件直接获胜（不计分）；标识符 daxingqi->tiisuin、展示名改为 tiisuin；统计键迁移保留计数 |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
 ---
@@ -82,7 +83,7 @@
 
 ### 一、`.gitignore`：本机可变文件全部出库
 
-- 新增排除 **`stats.json`**（累计统计：`daxingqiCount`/`wins`/`rounds`/`byPlayer`）——属本机运行态，不进公开仓库。
+- 新增排除 **`stats.json`**（累计统计：`tiisuinCount`/`wins`/`rounds`/`byPlayer`）——属本机运行态，不进公开仓库。
   - 它此前**已被 git 跟踪**（`260927-01` 的首次提交带入），故仅加 `.gitignore` 无效，必须 **`git rm --cached stats.json`** 取消跟踪（磁盘文件保留）。
   - 验证：`git check-ignore -v stats.json` → `.gitignore:10:stats.json`。
 - `.gitignore` 顺手统一为 **LF 行尾**（原为 3 处 CRLF + 14 处 LF 的混合）。
@@ -94,7 +95,7 @@
 
 | 原陈述 | 现状 |
 |---|---|
-| 大七星：已实现判定，默认不计分（可开启） | **已改为本身不计分**，触发时直接结束本局回主菜单 + 记统计（做出者 +1 做出数、其余三家 +1 见证数） |
+| tiisuin：已实现判定，默认不计分（可开启） | **已改为本身不计分**，触发时直接结束本局回主菜单 + 记统计（做出者 +1 做出数、其余三家 +1 见证数） |
 | 双役满 70000 点数档：未实现（上限 35000） | **已实现**：`doubleYakuman: true` → `specialPoints = 70000`，绕过赋位表与 35000 封顶；庄家 ×1.5 |
 
 ### 三、路径引用：全仓库精确扫描的结论
@@ -209,14 +210,14 @@ Pair: dsh+opencode
 | 二、当前状态 · 自动化测试 | **无**（2026-08-08 移除） | **有**：`run_all.py` 一键校验（yaku 49 用例/129 断言 + engine 17 用例/57 断言）+ 全自动冒烟 |
 | 二、当前状态 · 版本控制 | **无 git**；`backup/*.tar.gz` 为版本载体 | **git**：`Pub-Polaris/Tiisu-Mahjong-main`（`main`）+ tar 备份**双轨**；链条见 `AGCOMMIT_CHAIN.MD` |
 | 二、当前状态 · 判役 | 42 普通役 + 6 高得点役 | **50 普通役 + 20 高得点役**（计数自 `ike.json`） |
-| 五、已完成 | 缺役满/验证台/协同 | 补：役满全量（10 项）、双役满 70000（4 项）、水中月/镜中花重写、特例加计 7000、全食顺/全碰刻/水滴石破/全带赤/十三不靠、引擎级断言、大七星改口径、验证台、git 与协同 |
+| 五、已完成 | 缺役满/验证台/协同 | 补：役满全量（10 项）、双役满 70000（4 项）、水中月/镜中花重写、特例加计 7000、全食顺/全碰刻/水滴石破/全带赤/十三不靠、引擎级断言、tiisuin改口径、验证台、git 与协同 |
 | 六、未实现 | 列了 6 类"未实现" | 仅余 `一色二同高`/`一色四同刻`（**有意不补**）；流局五件事已实现；余下为"场风终局待确认"与"断言覆盖待补" |
-| 六、有意不补 · 大七星 | "默认不计分（可开启）" | **触发即结束本局并记统计**（不再"可开启计赋"） |
+| 六、有意不补 · tiisuin | "默认不计分（可开启）" | **触发即结束本局并记统计**（不再"可开启计赋"） |
 | 七、下一步 1 | "最小自动化回归（最高）" | **补断言覆盖**（三七之花/南北自通/驷马越岭/美人七对/四明杠） |
 | 八、如何继续工作 4 | 跑 `smoke.ps1` | 跑 `python scripts/run_all.py --runs 2`，并补"双 trailer + 链条登记" |
 | 页脚 | `260926` | `260927` |
 
-**核实过、原先写错的**：交接文档称 `水滴石破` 未实现——实测 `ike.json` 与 `winchecker.js` 均有该役，测试页有 3 处断言，**已实现**。`大七星默认不计分（可开启）` 也已被 `260927-01` 起的改动推翻。
+**核实过、原先写错的**：交接文档称 `水滴石破` 未实现——实测 `ike.json` 与 `winchecker.js` 均有该役，测试页有 3 处断言，**已实现**。`tiisuin默认不计分（可开启）` 也已被 `260927-01` 起的改动推翻。
 
 ### 二、`docs/README.md` 登记新文件
 
@@ -264,6 +265,51 @@ Pair: dsh+opencode
 
 - `scripts/run_yaku_test.ps1` → **PASS 131/131 断言 · 50 用例**。
 - 全程未改游戏代码；临时探针已删除（`scripts/` 只剩 8 个正式文件）。
+
+## 260927-08 — 大七星去除开关 + 改名为 tiisuin（2026-09-27）
+
+**主题**：按北极星口径，把「大七星」从"可选计分役"改为**无条件触发的直接获胜**，并把该特殊牌形统一改名为 **tiisuin**。
+
+### 一、去除 `daxingqi` 开关（无条件触发）
+
+原先该牌形受 `settings.daxingqi` 开关控制（关 = 完全不触发，按普通七对子结算）。现改为**只要做成七种字牌七对子就触发**：
+
+| 文件 | 改动 |
+|---|---|
+| `src/engine.js` | 结算入口 `if (result.sevenHonors && settings.daxingqi)` → `if (result.sevenHonors)`；`declareTiisuin()` 直接结束整局 + 回门户 + 记统计；删除另一处 gate |
+| `src/winchecker.js` | 删除 `winCtx.tiisuin ? 70000 : null` 的计分分支 → 一律 `specialPoints = null`（**不再计分**） |
+| `server.py` | `DEFAULT_SETTINGS` 删 `daxingqi` 键 |
+| `portal.html` / `debug.html` | 删除「大七星算赋」勾选框及相关读写 |
+| `settings.json` | 删除 `daxingqi` 键 |
+
+- **行为**：触发即**结束本局 + 回门户 + 记统计（做出者 +1、其余三家见证 +1）**，**不参与点数**。
+- 注意：`declareTiisuin()` 里确实没有点数增减；此前那个 70000 只写在 `winchecker` 里、且引擎在结算前就 `return`，**从未真正生效**。
+
+### 二、改名为 tiisuin
+
+**标识符**（18 处）：`daxingqi` → `tiisuin`（含 `daxingqiCount` → `tiisuinCount`、`declareDaxingqi` → `declareTiisuin`）。
+
+**展示名**（79 处）：中文名 → `tiisuin`，覆盖 `src/`、`portal.html`、`server.py`、`scripts/`、`AGENTS.md` 与现行文档。
+
+**统计键迁移**：`stats.json` 的 `daxingqiCount` → `tiisuinCount`、`byPlayer[].daxingqi` → `byPlayer[].tiisuin`，**计数保留**（迁移时 `tiisuinCount = 1`）。
+
+**有意保留旧名的历史文件**（25 处）：
+- `CHANGELOG_ARCHIVE.md`（11 处）
+- 规则书原文 `七子麻将指北极星_*.html`（8 处）
+- `规则对照_审查_260926.md`（6 处）
+
+> 因此：**本文件（含归档）中 `260927-08` 之前的条目仍写「大七星」**，那是当时的名称；`260927-08` 起统一用 `tiisuin`。
+
+### 三、测试同步
+
+- `scripts/yaku_test.html`：原「大七星 · 开关控制（开=双役满70000；关=不计分）」→ 改为「**tiisuin · 不计分、只标记**」（断言 `sevenHonors === true` 与 `specialPoints === null`）。
+- `scripts/engine_test.html`：去掉 `g.settings.daxingqi` 的设置行。
+
+### 四、验收
+
+- 语法探针 8/8 OK。
+- `python scripts/run_all.py --runs 1` → **ALL CHECKS PASSED**（yaku **130/130** · 50 用例；engine **57/57** · 17 用例；全自动零 JS 报错）。
+- 全仓库 `daxingqi` 残留 0；中文旧名残留 25 处且均为有意保留的历史文件。
 
 ## 260927-06 — CHANGELOG 拆归档 + 待办区重写（2026-09-27）
 
@@ -370,7 +416,7 @@ Pair: dsh+opencode
 | 驷马越岭 | 补「大单钓」校验：四杠 + 暗手恰为一对 + 自摸 |
 | 美人七对 | 补「三元牌不得开杠」：有任意杠即不成立 |
 | 南北自通 | 触发条件由「仅自摸」放宽为 `自摸 或 和牌张为 1/5/7/9`（规则书 6.2 原文） |
-| 大七星 | `specialPoints = 70000`（双役满），仅在「大七星算赋」开关开启时生效 |
+| tiisuin | `specialPoints = 70000`（双役满），仅在「tiisuin算赋」开关开启时生效 |
 | 全数筋和 | 复核：`ike.json` 中**本来就是 `optional: true`**，无需改动 |
 
 ### 三、计分（8.1 / 8.2 / 8.3）
@@ -417,15 +463,15 @@ Pair: dsh+opencode
 - 被抢时同张多家可和，走 `declareMultiRon`；三家则自动流局。
 - 顺带修复：暗杠 / 加杠生成的牌对象此前 `num` 为字符串（数牌也是），改为 `tileFromId()` 生成正确类型。
 
-### 七、大七星（6.2.1）
+### 七、tiisuin（6.2.1）
 
-新增 `declareDaxingqi()`：开启「大七星算赋」时命中 → **双役满 70000 点 + 比赛场做出直接获胜**（立即结束整场、写 `state.json inProgress:false`、统计上报）；关闭时按普通七对子正常结算。
+新增 `declareDaxingqi()`：开启「tiisuin算赋」时命中 → **双役满 70000 点 + 比赛场做出直接获胜**（立即结束整场、写 `state.json inProgress:false`、统计上报）；关闭时按普通七对子正常结算。
 
 ### 八、测试（新增）
 
-- **`scripts/engine_test.html`** + **`scripts/run_engine_test.ps1`**：引擎级断言，**13 用例 / 42 断言**（牌山模型、场次初始点数与终局场风、门风轮转、roundLabel、四风连打、三家和流局、双和子跳庄、出岭、大七星、拔厄、未听返杠、连庄奖励、赐马口径）。
+- **`scripts/engine_test.html`** + **`scripts/run_engine_test.ps1`**：引擎级断言，**13 用例 / 42 断言**（牌山模型、场次初始点数与终局场风、门风轮转、roundLabel、四风连打、三家和流局、双和子跳庄、出岭、tiisuin、拔厄、未听返杠、连庄奖励、赐马口径）。
 - **`scripts/run_all.py`** + **`scripts/run_all.cmd`**：一键跑「yaku 断言 + engine 断言 + N 局全自动冒烟」。用 Python 而非 PowerShell 串联，原因是嵌套 / 反复从网络盘加载 .ps1 会触发 Windows **AMSI** 崩溃（`System.AccessViolationException in AmsiScanBuffer`）。
-- `scripts/yaku_test.html` 由 36 用例增至 **49 用例 / 129 断言**，新增：龙七对、全带赤（红牌 / 非红）、南北通 +7000、水滴石破、国士两特例、大七星开关、美人七对（有杠不成立）、驷马越岭（自摸 / 荣和）、四明杠、连庄奖励、段位点。
+- `scripts/yaku_test.html` 由 36 用例增至 **49 用例 / 129 断言**，新增：龙七对、全带赤（红牌 / 非红）、南北通 +7000、水滴石破、国士两特例、tiisuin开关、美人七对（有杠不成立）、驷马越岭（自摸 / 荣和）、四明杠、连庄奖励、段位点。
 - `scripts/smoke.ps1` 的**人工模式渲染断言**此前误把内联 `<script>` 源码里的模板字符串当作已渲染 DOM（虚假通过）；已加 `Get-DomText` 先剥离 script/style 再计数。
 
 ### 验收
