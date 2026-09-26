@@ -6,6 +6,26 @@
 > **定位**：**按需查，不进"必读清单"**。它不参与每次开工的固定输入，避免会话成本随提交数增长。
 > **基线**：代码 `P:\Playground`，仓库 `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`。
 
+## 近期破坏性变更（先读这段）
+
+**如果你没有 git**：本文件与仓库里所有文件一样，直接用编辑器打开 `P:\Playground\...` 即可；下表是"你手上的旧认知可能已失效"的部分。
+
+| 时间 | 变更 | 旧认知会怎么错 |
+|---|---|---|
+| 2026-09-27 | **`daxingqi` → `tiisuin`** | 标识符（18 处）、展示名（79 处）、方法 `declareDaxingqi` → `declareTiisuin` 全部改名 |
+| 2026-09-27 | **`settings.daxingqi` 键已删除** | 别再写它（`server.py` 默认值、`settings.json`、`portal.html`、`debug.html` 均已移除）；写了是无效键 |
+| 2026-09-27 | **统计键迁移** | `stats.json`：`daxingqiCount` → `tiisuinCount`、`byPlayer[].daxingqi` → `.tiisuin`（**计数保留**） |
+| 2026-09-27 | **大七星不再计分** | `winchecker` 里 `specialPoints = winCtx.daxingqi ? 70000 : null` 已删除 → 一律 `null`；行为 = 做成七种字牌七对子 → **无条件**结束本局 + 回门户 + 记统计 |
+| 2026-09-27 | **CHANGELOG 已拆** | 主 `CHANGELOG.md` 只留最近若干条 + 待办区；`260926-06` 及更早 12 条在 **`CHANGELOG_ARCHIVE.md`**（按需查，别每次读） |
+| 2026-09-27 | **用例数已变** | `yaku_test.html` **50 用例 / 130 断言**；`engine_test.html` 17 用例 / 57 断言 |
+| 2026-09-27 | **备份清单已修** | `AGENTS.md` 2.1 的 tar 清单原先漏了 `scripts`，现补上——别按旧清单打包 |
+| 2026-09-27 | **新约定** | 提交带 `Agent: <who>` + `Pair: dsh+opencode` 两行 trailer；推送后在**本文件**追加一行，并把上一行的 `（本条）` 回填成真实 hash（规则 8） |
+
+### 有意保留旧名的位置
+
+历史事实不改：`CHANGELOG_ARCHIVE.md`、规则书原文（`*_CN_260721_*.html`）、`规则对照_审查_260926.md` 里仍写旧名「大七星」。
+**因此 `260927-08` 之前的条目都写旧名，之后才用 `tiisuin`。**
+
 ## 规则
 
 1. **谁推送，谁补自己那条**。只**追加**，不回头改别人的行（避免变成第二个 `CHANGELOG` 式的冲突热点）。
@@ -36,7 +56,8 @@
 | 2026-09-27 05:2x | `dsh` | `0582944` | `项目交接.md` 同步现状（无git→git双轨、无测试→有、42+6→50+20、役满→已完成、删失实的「水滴石破未实现」）；`docs/README.md` 登记链条文件；`CHANGELOG` 260927-05 | 交接文档已可用于 next agent |
 | 2026-09-27 05:5x | `dsh` | `777f69f` | 新增 `CHANGELOG_ARCHIVE.md`（12 个历史条目移入）；主 CHANGELOG 降 49%；待办区重写 + 编号约定；修重复页脚 | 主 CHANGELOG 已瘦身，会话固定成本下降 |
 | 2026-09-27 06:1x | `dsh` | `3d9c276` | `yaku_test.html` 补 2 条役满优先权反例（三七之花/美人七对被截走）；`CHANGELOG` 待办区更正 4 个役满"已有用例"的失实描述；补记驷马越岭条件 | 发现：交接文档把已有覆盖误列为待补 |
-| 2026-09-27 06:5x | `dsh` | `（本条）` | tiisuin：大七星去开关改为无条件直接获胜（不计分）；标识符 daxingqi→tiisuin（18）+ 展示名（79）；统计键 tiisuinCount 迁移；历史文件保留旧名 | 名称已切换，后续一律用 tiisuin |
+| 2026-09-27 06:5x | `dsh` | `8a9a909` | tiisuin：大七星去开关改为无条件直接获胜（不计分）；标识符 daxingqi→tiisuin（18）+ 展示名（79）；统计键 tiisuinCount 迁移；历史文件保留旧名 | 名称已切换，后续一律用 tiisuin |
+| 2026-09-27 07:1x | `dsh` | `（本条）` | `AGCOMMIT_CHAIN.MD` 顶部新增「近期破坏性变更」段（8 行表 + 无 git 说明），供无 git 的接手方快速发现改名/去开关 | 无 git 也能对齐认知 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
 > 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
