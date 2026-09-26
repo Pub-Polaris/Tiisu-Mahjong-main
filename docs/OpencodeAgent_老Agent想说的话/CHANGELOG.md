@@ -176,6 +176,7 @@ Pair: dsh+opencode
 - 可用 `git log --grep='^Agent:'` 筛出任一方的全部提交；`--grep='^Agent: 北极星'` 可查出北极星在 GitHub 网页上直接提交的条目。
 - **历史提交不回填 trailer**（约定自本条目起生效）；历史归属登记见下方链条文件。
 - **推之前先 `git pull --rebase origin main`**：远程已有他人提交时用 rebase，**不要** `--force`（强推会抹掉对方工作）。
+- 链条表里**头部那条写 `（本条）`**（amend 会改 hash，写进去无法收敛）；**别人提交后把上一行回填成真实 hash**——表里永远只有最后一行是占位符。
 **（2）根目录链条文件 `AGCOMMIT_CHAIN.MD`**（新建）：
 
 - 每次提交**追加一行摘要**：`时间 | Agent | commit | 改了什么 | 留给谁`。
