@@ -57,6 +57,15 @@ def log(msg=""):
     sys.stdout.flush()
 
 
+def read_bytes(path):
+    """读取文件原始字节；不存在返回 None（用于逐字节比对）。"""
+    try:
+        with open(path, "rb") as f:
+            return f.read()
+    except Exception:
+        return None
+
+
 def find_edge():
     for p in EDGE_CANDIDATES:
         if os.path.isfile(p):
@@ -209,8 +218,31 @@ def main():
     log("Tiisu Mahjong: run_all.py")
     log("Root: %s" % ROOT)
 
+    # 断言页会真实调用 engine 的统计上报 / 会话存档；测试页内已把
+    # /api/stats 与 /api/state 换成内存桩。这里再从文件层复核一次：
+    # 跑完所有断言后 stats.json 与 state.json 内容必须逐字节不变。
+    watch = ["stats.json", "state.json"]
+    before = {n: read_bytes(os.path.join(ROOT, n)) for n in watch}
+
     run_assertion_page(edge, "yaku / scoring assertions", "scripts/yaku_test.html", "YAKUTEST")
     run_assertion_page(edge, "engine-rule assertions", "scripts/engine_test.html", "ENGINETEST")
+
+    after = {n: read_bytes(os.path.join(ROOT, n)) for n in watch}
+    log("")
+    log("=" * 62)
+    log("  测试隔离：断言不得改动运行态文件（stats.json / state.json）")
+    log("=" * 62)
+    changed = [n for n in watch if before[n] != after[n]]
+    if not changed:
+        log("  [PASS] %s 逐字节不变" % " + ".join(watch))
+        PASSED.append("run-state isolation")
+    else:
+        log("  [FAIL] 被断言改动：%s（测试隔离失效）" % ", ".join(changed))
+        for n in changed:
+            log("    %s: before=%d bytes  after=%d bytes"
+                % (n, len(before[n] or b""), len(after[n] or b"")))
+        FAILED.append("run-state isolation")
+
     run_auto_games(edge, runs)
 
     log("")

@@ -29,8 +29,261 @@
 | 260927-06 | 2026-09-27 | CHANGELOG 拆归档 + 待办区重写 | 新增 `CHANGELOG_ARCHIVE.md`（12 个历史条目）；主文件降约 49%；待办区重写并补编号约定 |
 | 260927-07 | 2026-09-27 | 役满优先权反例 + 待办区更正 | 新增 2 条「被更高优先权截走」反例；更正待办区对 4 个役满用例覆盖的失实描述；补记驷马越岭条件 |
 | 260927-08 | 2026-09-27 | tiisuin：去开关 + 改名 | 大七星改为无条件直接获胜（不计分）；标识符 daxingqi->tiisuin、展示名改为 tiisuin；统计键迁移保留计数 |
+| 260927-09 | 2026-09-27 | **opencode 校正轮**：展示名回归 + 回门户 + 统计隔离 | 展示名回归「大七星」（玩家只看中文）；实现「回门户等 5 秒」；补「见证 +1」；stats 旧键归一化；测试加 stats 内存桩；修 5 处过期陈述/标题；备份清单改整目录打包 |
+| 260927-10 | 2026-09-27 | **终局延长改「只补一圈」**+ 隔离扩到 state.json + smoke 口径修正 | 全庄/东风/半庄未达标只补一圈即终局；断言页加 `?nostart=1` 彻底不碰 state.json；`run_all.py` 同时复核两个运行态文件；`smoke.ps1` 单实例检查改为看 7777 |
+| 260927-11 | 2026-09-27 | **终局延长改「只补一手」**（推翻 260927-10 的「补一圈」）+ 安全上限收小 | 未达标只打一手（南入/西入/北增），和牌或流局即终局；各延长只 1 次；安全上限 `modeTarget+16`；`roundLabel` 显示延长标签 |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 260927-11 — 终局延长改「只补一手」+ 安全上限收小（2026-09-27）
+
+**主题**：北极星对 3.8（场风轮转与终局）追加裁定，**直接修正 `260927-10` 的延长口径**。
+**仅改终局判定一处逻辑与相关测试/文档，未动任何役种、计分公式。**
+
+### 一、口径（北极星原文）
+
+> 西入、南入、北增都只 1 次，打一轮直到有人和牌/进行流局就停
+> 不需要太大，如果它操作连庄的话，连庄本身就不需要这么大（有七日终战约束）
+> 默认 16 圈（东风、南风、西风、北风）下来够了
+
+落成三条规则：
+
+1. **各延长只发生 1 次**（南入 / 西入 / 北增）。
+2. **延长只打「一手」**：这一手以**和牌或流局**结束即终局；不再打满一圈（4 手）。
+3. **安全上限不需要大**：连庄已由「七日终战」（本场达 7 → 强制过庄进 ALL LAST）约束；
+   默认全庄 16 手（东南西北各 4 手）就够。
+
+### 二、实现（`src/engine.js`）
+
+`advanceRound()` 的终局条件重写：
+
+```js
+if (this.modeTarget === 1) {
+    over = true;                                   // 一局制：一手即终
+} else if (this._inExtension) {
+    over = true;                                   // 延长的那一手已打完 → 立即终局
+} else if (this.roundWindIdx > this.finalWindIdx) {
+    if (top >= this.initialPoints) over = true;    // 最后一场达标 → 终局
+    else this._inExtension = true;                 // 未达标 → 只补一手（各延长只 1 次）
+}
+if (this.handsPlayed >= this.modeTarget + 16) over = true;   // 防跑飞兜底（原 ×6 过大）
+```
+
+- 新增实例标记 **`this._inExtension`**（构造 / `setMode` / `resetAll` 均重置为 `false`）；
+  进入延长的那一手打完，`advanceRound` 立即 `over = true`。
+- **安全上限**由 `modeTarget × 6`（全庄 96 手）**收小为 `modeTarget + 16`**（全庄 16+16=32 手）—— 仍留足连庄余量（实测全庄正常收口约 20–26 手），同时不再是 ×6 那种夸张值。
+- `roundLabel()` 增加延长标签：<code>南入N局</code> / <code>西入N局</code> / <code>北增N局</code>
+  （全庄战北场之后的延长用「北增」）。
+- 删除了旧的 `roundWindIdx > finalWindIdx + 1`（补满一圈）分支 —— 只补一手后不可能走到。
+
+### 二·二、连带修出的两个 bug（旧「打满 modeTarget 手」假设的残留）
+
+改成「按场风收口」后，两处仍假设「打满 `modeTarget` 手 = 对局结束」的代码会误判，一并修掉：
+
+1. **`saveSessionState()` 的 `inProgress`**：原为 `this.handsPlayed < this.modeTarget` —— 连庄多打时会**在 16 手后误标为「对局已结束」**，导致刷新后不再提示恢复。改为 **`!this.matchOver`**（以真正的终局标记为准）。
+2. **`advanceRound()` 开头的防重守卫**：原为 `if (this.gameOver && this.handsPlayed >= this.modeTarget) return false;` —— `gameOver` 每局和牌都会置 true，于是**第 16 手一打完就彻底冻结、再也开不了新局**（全庄战根本打不到北场结束）。改为只认 **`if (this.matchOver) return false;`**。
+
+> 实测（`?auto=1&mode=16`）：修前跑到「北1局 / 16局」即冻结；修后能继续到北场收口 / 延长。
+
+### 三、测试
+
+`scripts/engine_test.html` 的终局用例重写，新增/替换断言（**18 用例 / 73 断言**）：
+
+- 全庄未达标 → **不终局**，`_inExtension === true`，标签为「北增1局」；
+- 延长一手打完 → **立即终局**（不再看分数，也不会出现第二个延长）；
+- 全庄已达标 → **不延长**，直接终局；
+- 半庄未达标 → 标签「西入…」；东风未达标 → 标签「南入…」；
+- 安全上限 = `modeTarget + 16`。
+
+### 四、验收
+
+```
+python scripts/run_all.py --runs 1
+```
+
+| 检查 | 结果 |
+|---|---|
+| YAKUTEST | **PASS 133/133 断言 · 51 用例** |
+| ENGINETEST | **PASS 73/73 断言 · 18 用例** |
+| 测试隔离 | `stats.json` + `state.json` 逐字节不变 |
+| 全自动冒烟 | 零 JS 报错、回合已渲染 |
+| `smoke.ps1` | **PASS 9/9** |
+
+### 五、文档同步
+
+规则书附录 **J-C**、`规则缺口清单.md`、`规则与实现_当前版本.md` 3.8、`个人指南_北极星.md`、
+`AGENTS.md`、`docs/README.md`、`项目交接.md`、`工具调用说明.md`、`文档自检_260926.md`、
+`AGCOMMIT_CHAIN.MD`（用例数行）—— 全部由「只补一圈」改为「只补一手」。
+
+### 六、留给 `dsh`（提交）
+
+- 本条与 `260927-09` / `260927-10` **同属一批未提交改动**，请**一次提交**；
+  提交时按 `AGCOMMIT_CHAIN.MD` 里 `opencode` 那一行的留话操作（回填 hash + 双 trailer）。
+
+---
+
+## 260927-10 — 终局延长改「只补一圈」+ 隔离扩到 state.json + smoke 口径修正（2026-09-27）
+
+> **本条「只补一圈」的延长口径已被 `260927-11` 修正为「只补一手」**（北极星 2026-09-27 再定）。下文其他内容仍然有效。
+
+**主题**：北极星拍板 3 项口径后的落地。**仅改口径与测试基础设施，未动任何役种判定。**
+
+### 一、终局延长：未达标「只补一圈就结束」（已确认口径）
+
+`src/engine.js#advanceRound()` 的终局条件由「循环延长直到 1 位达标」改为：
+
+```js
+} else if (this.roundWindIdx > this.finalWindIdx + 1) {
+    over = true;                                  // 补满一圈 → 无论分数都终局
+} else if (this.roundWindIdx > this.finalWindIdx && top >= this.initialPoints) {
+    over = true;                                  // 圈内已达标 → 提前终局
+}
+```
+
+- **东风战**：东场完未达 49000 → **南入一圈**，该圈完即终局。
+- **半庄战**：东南场完未达 49000 → **西入一圈**，该圈完即终局。
+- **全庄战**：北场完未达 77000 → **再打一圈**，该圈完即终局（不再无限延长）。
+- 安全上限 `handsPlayed >= modeTarget × 6` 保留为兜底（正常不再触发）。
+- 同步文档：规则书附录 **J-C**、`规则缺口清单.md`、`规则与实现_当前版本.md` 3.8（并把该行待办由「口径待确认」改为「已定」）。
+
+### 二、断言隔离扩到 `state.json`（此前只拦了 `stats.json`）
+
+- **实情**：断言页挂载的 `index.html` 在加载时会 `POST /api/state {inProgress:false}`（`startFresh`），
+  且 `engine_test` 的断言会真实调用 `saveSessionState()` / `declareTiisuin()` / `advanceRound()`，
+  于是**跑一次断言就改写 `state.json`**（`run_all.py` 只查 `stats.json`，漏掉了它）。
+- **修法（双保险）**：
+  1. `index.html` 支持 **`?nostart=1`**：只装配 + 渲染，**不开局、不写 state.json、不起命令轮询**；
+     两个断言页改为挂载 `../index.html?nostart=1`。
+  2. 两个断言页的网络桩由「只拦 `/api/stats`」扩为「**同时拦 `/api/stats` 与 `/api/state`**」。
+  3. `scripts/run_all.py`：跑断言前后**逐字节比对 `stats.json` 与 `state.json`**，检查项更名为 `run-state isolation`。
+  4. 顺带修掉 `run_all.py` 里残留的重复失败标签（曾同时打 `run-state isolation` 与 `stats isolation`）。
+- 另修一处测试自身的坑：`yaku_test` 的隔离用例直接 `saveSessionState()`，
+  但 `gameFactory()` 没初始化 `scores`，`this.scores.slice()` 抛错后被 engine 内部 `try/catch` 静默吞掉
+  → 断言永远拿不到请求。已补齐 `scores/modeTarget/handsPlayed/...` 再调用。
+
+### 三、`smoke.ps1` 单实例检查改为「只看 7777」
+
+- 原第 1 项要求**全机** `python.exe` 进程 ≤ 1，本机常驻 `unsloth_studio` → **恒 `FAIL 8/9`**。
+- 改为：`Get-NetTCPConnection -LocalPort 7777 -State Listen` 取 `OwningProcess | -Unique`，判「**占用 7777 的进程 ≤ 1**」。
+- 保持文件**纯 ASCII**（避免 PS 5.1 编码坑）；`docs/DSH/已知坑.md` 6.10 同步为「已修复」。
+- 实测：**`RESULT: PASS 9/9`**（此前 8/9）。
+
+### 四、验收
+
+```
+python scripts/run_all.py --runs 1
+```
+
+| 检查 | 结果 |
+|---|---|
+| YAKUTEST | **PASS 133/133 断言 · 51 用例** |
+| ENGINETEST | **PASS 66/66 断言 · 18 用例** |
+| 测试隔离 | `stats.json` + `state.json` **逐字节不变** |
+| 全自动冒烟 | 零 JS 报错、回合已渲染 |
+| `smoke.ps1 -Runs 1` | **PASS 9/9** |
+
+### 五、留给 `dsh`（提交）
+
+- 本轮由 `opencode` 完成、**仍未提交**；与本条一起提交即可（见 `AGCOMMIT_CHAIN.MD` 中 opencode 那一行的留话）。
+- 计数已变：yaku **51 用例 / 133 断言**、engine **18 用例 / 66 断言** —— 相关文档已同步。
+
+---
+
+## 260927-09 — opencode 校正轮：展示名回归 + 回门户 + 统计隔离（2026-09-27）
+
+**主题**：`260927-08` 由 `dsh` 做了「大七星 → tiisuin」的全局改名与去开关。本轮由 `opencode`（**尚无 git**）核对后做**口径校正与补齐**：区分「标识符」与「展示名」、把只声明未实现的部分落地、给断言加数据隔离。
+**说明**：本轮由 opencode 单独完成，未在 git 中提交（见 `AGCOMMIT_CHAIN.MD` 的协作约定）。
+
+### 一、命名口径校正（展示名回归「大七星」）
+
+`260927-08` 把**展示名也改成了 `tiisuin`**（79 处），导致玩家/文档里出现「tiisuin 直接获胜」「tiisuin 算赋」等英文串。本轮确立并落地口径：
+
+| 维度 | 口径 |
+|---|---|
+| 标识符 / 键名 / 方法名 | 用 `tiisuin`（`tiisuinCount`、`byPlayer[].tiisuin`、`declareTiisuin`、`isSevenHonors`） |
+| **展示名（玩家可见文案）** | 一律用中文 **「大七星」**——不要拿 `tiisuin` 当玩家可见文字 |
+
+- `src/engine.js`：`declareDaxingqi()` → **`declareTiisuin()`**（定义 + 调用点，与 `dsh` 的口径一致）；日志/overlay/记录步文案全部改为「大七星」。
+- `portal.html`：统计区标题与标签改回「大七星（做出）/（见证）」；`id="stDaxingqi"` → `id="stTiisuin"`。
+- `scripts/yaku_test.html` / `scripts/engine_test.html`：用例标题/注释改用「大七星（tiisuin）」。
+
+### 二、实现「回门户等 5 秒」（此前只有注释、没有代码）
+
+`260927-08` 的文档反复写「回门户」，但**代码里没有任何跳转**。本轮实现：
+
+- `index.html` 新增顶层 `onMatchOver(reason)`：显示「（原因）N 秒后返回门户…」，倒计时 **5 秒**，到点 `location.href = 'portal.html'`。
+- `src/engine.js` 在 **三处整场结束**调用该钩子（UI 由 index.html 实现，引擎不依赖 DOM）：
+  - `declareTiisuin()`（大七星直接获胜）
+  - `checkDeungnyeong()`（出岭击飞）
+  - `advanceRound()` 终局分支
+- 例外：**演示模式（`?auto=1`，`_demoMode`）不跳转**，否则自动演示会被打断。因此 `declareTiisuin()` 在把 `_demoMode` 置 false **之前**先记下 `wasDemo`。
+- `startMode()` 会清掉进行中的跳转定时器，避免上一局的倒计时把新开的一局跳走。
+
+### 三、补齐「见证 +1」（此前只发送、服务端忽略）
+
+`engine.js` 早就上报 `witness: [三家名字]`，但 `server.py` **从未处理该字段**，文档却写「其余三家见证 +1」。本轮补齐：
+
+- `server.py` `DEFAULT_STATS` 增 `witnessCount`；`_handle_stats` 对 `witness` 数组逐名累加 `byPlayer[].witness`，并累加 `witnessCount`。
+- `portal.html` 增一个统计格「大七星（见证）」，明细行按需显示 `大七星(见证) N`。
+
+### 四、`stats.json` 旧键归一化（消除混合态）
+
+`260927-08` 改了键名，但磁盘上的 `stats.json` 仍同时存在 `daxingqiCount` 与 `tiisuinCount`、`byPlayer[].daxingqi` 与 `.tiisuin`。
+
+- `server.py` 新增 `_normalize_stats()`（幂等）：读入时把 `daxingqiCount` 折进 `tiisuinCount`、`byPlayer[].daxingqi` 折进 `.tiisuin`，然后**删除旧键**；GET/POST 都走这条规范化。
+- `stats.json` 由「混合态」重写为规范结构（计数保留：`tiisuinCount: 1`、`wins: 23`、`rounds: 19`）。
+
+### 五、断言数据隔离（测试不再改累计统计）
+
+断言页会真实调用 `reportStats*()`，此前每跑一次测试就把 `wins`/`rounds` 写进 `stats.json`（属"运行态被测试改"）。
+
+- `scripts/yaku_test.html`（`window.fetch`）与 `scripts/engine_test.html`（iframe 的 `w.fetch`）：把 **`/api/stats` 换成内存桩**，只记录调用、不落盘；其余端点（`/api/log` 等）照常。
+- `scripts/run_all.py`：跑断言**前后逐字节比对 `stats.json`**，新增独立检查 `测试隔离：stats.json 未被断言改动`（PASS/FAIL）。
+- `scripts/engine_test.html` 的「大七星」用例同步加断言：拦截到 2 次上报、其中 1 次带 `witness` 且长度为 3。
+
+### 六、修 5 处过期陈述 / 标题
+
+| 位置 | 过期内容 | 现状 |
+|---|---|---|
+| `scripts/engine_test.html` 用例标题 | 「tiisuin：**开启算赋时 → 双役满 70000** + 立即结束整场」 | 大七星·**无条件**：不计分 + 立即结束整场 + 回门户钩子 + 统计不落盘 |
+| `src/winchecker.js` 注释（4 处） | 「默认不计分（由 `winCtx.tiisuin` 决定是否计赋）」「仅在开启时计分」 | 已改：**本身不计分**，由 engine 直接结束整局 |
+| `src/engine.js` 注释（3 处） | 「tiisuin直接获胜」 | 「大七星」 |
+| `docs/北极星_(人类)/规则与实现_当前版本.md`、`规则对照_审查_260926.md`、`规则缺口清单.md`、`代码地图.md`、`个人指南_北极星.md`、`工具调用说明.md`、`项目交接.md`、`已知坑.md`、`AGENTS.md`、`design_ui_plan.md` | 残留「开启算赋 = 70000 / 默认不计分（可开启）/ `settings.tiisuin` / `winCtx.tiisuin` / 待裁定」 | 统一改为：**不计分、无条件直接结束整场、无开关**；`settings` 与 `winCtx` 里已无该键 |
+
+### 七、`AGENTS.md` 2.1 备份清单改为整目录打包
+
+原清单**逐列文件名**，已两次漏备（先漏 `scripts`，后漏 `AGENTS.md` / `CLAUDE.md` / `AGCOMMIT_CHAIN.MD`）。改为：
+
+```powershell
+$ts = Get-Date -Format "yyyyMMdd_HHmmss"
+tar -czf "P:\Playground\backup\backup_$ts.tar.gz" --exclude=backup --exclude=logs -C "P:\Playground" .
+```
+
+### 八、启动前置的安全修正（避免误伤别的项目）
+
+- **`AGENTS.md` 2.2**：原写「先杀掉所有 `python.exe`」——本机常驻 `unsloth_studio` 等 python 进程，**照做会误杀与本项目无关的任务**。改为**只结束占用 7777 的那一个**（`Get-NetTCPConnection -LocalPort 7777`），并追加自检输出。
+- **`docs/DSH/已知坑.md` 新增 6.10**：登记该风险 + 附带说明「`smoke.ps1` 第 1 项用全机 python 计数，故在本机恒 `FAIL 8/9`，属脚本口径而非项目故障」；工具与环境 9 → 10 条。
+- **`规则与实现_当前版本.md` 3.8**：由「待确认」更新为**已实现**的终局条件（场风走完 + 1 位 ≥ 初始点数；否则南入/西入/再打一圈；安全上限 `modeTarget × 6`），并把待办改成「口径确认」。
+
+### 验收
+
+`python scripts/run_all.py --runs 1` → **ALL CHECKS PASSED**：
+
+| 检查 | 结果 |
+|---|---|
+| YAKUTEST | **PASS 133/133 断言 · 51 用例** |
+| ENGINETEST | **PASS 66/66 断言 · 18 用例** |
+| 测试隔离 | `stats.json` + `state.json` 逐字节不变 |
+| 全自动冒烟 | 1 局零 JS 报错、回合已渲染 |
+
+### 待 `dsh` 接手
+
+- 本轮改动**未提交**（opencode 无 git）→ 请 `git status` 确认后一并提交（**别 `git add -A` 盲提**），并：
+  1. 把 `AGCOMMIT_CHAIN.MD` 中本轮的 `（待 dsh 提交）` 回填成真实 hash（规则 8）；
+  2. 按 `AGENTS.md` 七.8 带 `Agent: dsh` + `Pair: dsh+opencode` trailer。
+- `260927-08` 里「展示名（79 处）改为 tiisuin」的表述已被本轮校正，**后续一律：标识符 `tiisuin` / 展示名「大七星」**。
+
 ---
 
 ## 260927-01 — 仓库上 GitHub + 契约同步 git 双轨（2026-09-27）
@@ -502,7 +755,7 @@ Pair: dsh+opencode
 
 - **规则缺口**（详见 `docs/北极星_(人类)/规则缺口清单.md`／`规则与实现_当前版本.md`）：
   - **役种**：仅余 `一色二同高` / `一色四同刻` → **已决策有意不补**（由既有下位累进覆盖）。
-  - **场风终局**：全庄战打到北场之后的终止条件（`规则与实现_当前版本.md` 3.8）**待北极星确认**。
+  - **场风终局**：已定（2026-09-27）——未达标**只补一手就结束、各延长只 1 次**（见 `260927-11`）；安全上限已收小为 `modeTarget + 16`。
   - **断言覆盖**：`三七之花` / `美人七对` / `驷马越岭`（四杠）/ `四明杠` **均已有用例**（2026-09-27 复核 `yaku_test.html`）；
     真正仍缺的是**优先权链"影子役满"**的记录——同一牌型会被更靠前的役满截走的那些。
 - **已知归属**（有意保留现状）：P02 南北通判定偏松；P03 水中月定义与指南不一致。
@@ -515,4 +768,4 @@ Pair: dsh+opencode
 
 ---
 
-> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
+> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_053053.tar.gz`

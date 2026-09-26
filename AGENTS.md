@@ -8,7 +8,7 @@ Four-player Mahjong variant with its own yaku set and "Fu-based" scoring. Pure f
 
 > **摘要**：本项目是自创规则的四人麻将实现。本文件是给自动化编码 agent 的项目契约：环境、地图、命令、验收标准与红线。
 > **面向**：所有在本仓库工作的 agent（opencode、Deepseek Harness / DSH）。
-> **基线**：代码 `P:\Playground`，文档版本 `260926`（2026-09-26），对应备份 `backup_20260927_011140.tar.gz`。
+> **基线**：代码 `P:\Playground`，文档版本 `260926`（2026-09-26），对应备份 `backup_20260927_053053.tar.gz`。
 
 ## 目录
 
@@ -40,19 +40,28 @@ Shell 为 **PowerShell 5.1**（不支持 `&&`，用 `;` 或 `cmd1; if ($?) { cmd
 ### 2.1 备份（改动前必做）
 
 ```powershell
-cd P:\Playground
 $ts = Get-Date -Format "yyyyMMdd_HHmmss"
-tar -czf "backup\backup_$ts.tar.gz" server.py run.cmd portal.html debug.html index.html ike.json settings.json state.json stats.json src mj_tiles scripts docs
+tar -czf "P:\Playground\backup\backup_$ts.tar.gz" --exclude=backup --exclude=logs --exclude=.git --exclude="*.zip" -C "P:\Playground" .
 ```
+
+- 用「排除 `backup/` `logs/` `.git/` `*.zip` 后**整目录打包**」，而不是逐个列文件名——**新增文件不会被漏掉**（历史教训：曾因清单过时而漏备 `AGENTS.md` / `CLAUDE.md` / `AGCOMMIT_CHAIN.MD`）。
+- 排除 `.git/` 是为了不让备份体积翻倍（git 对象已压缩、且可从远端重建）。
+- 把新备份名写进本次改动的文档页脚，并追加一条 `docs/OpencodeAgent_老Agent想说的话/CHANGELOG.md`。
 
 ### 2.2 启动服务器（先确保只有一个实例）
 
 ```powershell
-Get-CimInstance Win32_Process -Filter "Name='python.exe'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+# ⚠ 只结束【占用 7777】的那个 python。
+#    不要 `Get-Process python | Stop-Process` —— 本机可能还有别的项目在跑 python
+#    （例如 unsloth_studio），全杀会误伤。
+$pids = @(Get-NetTCPConnection -LocalPort 7777 -State Listen -ErrorAction SilentlyContinue).OwningProcess
+foreach ($p in $pids) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 2
 Start-Process -FilePath "<PYTHON>" -ArgumentList "<NAS>\Playground\server.py" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 netstat -ano | Select-String ":7777" | Select-String "LISTENING"
+# 自检：只有 1 个 python 在监听 7777
+@(Get-NetTCPConnection -LocalPort 7777 -State Listen -ErrorAction SilentlyContinue).Count
 ```
 
 或直接双击 `run.cmd`。根路径 `/` 会 302 到 `/portal.html`。
@@ -73,8 +82,8 @@ python P:\Playground\scripts\run_all.py --runs 2
 
 | 步骤 | 页面/脚本 | 内容 |
 |---|---|---|
-| 1 | `scripts/yaku_test.html` | 役种 / 赋 / 点数断言（49 用例 · 129 断言） |
-| 2 | `scripts/engine_test.html` | 引擎规则断言（17 用例 · 57 断言：牌山 / 场次 / 流局 / 十三不靠 / 多和 / 出岭 / 拔厄 / 赐马 / 统一流局按钮渲染） |
+| 1 | `scripts/yaku_test.html` | 役种 / 赋 / 点数断言（51 用例 · 133 断言） |
+| 2 | `scripts/engine_test.html` | 引擎规则断言（18 用例 · 73 断言：牌山 / 场次 / 流局 / 十三不靠 / 多和 / 出岭 / 拔厄 / 赐马 / 统一流局按钮渲染 / 终局「只补一手」延长） |
 | 3 | `index.html?auto=1&mode=4` | N 局全自动，断言无 JS 报错且回合已渲染 |
 
 单项运行：`scripts/run_yaku_test.ps1`、`scripts/run_engine_test.ps1`、`scripts/smoke.ps1 -Runs N`。
@@ -97,7 +106,7 @@ Select-String -Path "$env:TEMP\x.html" -Pattern 'class="tile clickable"' | Measu
 | 页面 | 用途 |
 |---|---|
 | `portal.html` | 门户：模式选择、设置、统计、文档入口 |
-| `index.html` | 游戏主页面；参数 `?mode=N`、`&test=1`、`?auto=1&mode=N`、`?scoretest=1` |
+| `index.html` | 游戏主页面；参数 `?mode=N`、`&test=1`、`?auto=1&mode=N`、`?scoretest=1`、**`?nostart=1`**（只装配+渲染，不开局、不读写 `state.json`、不起命令轮询 —— 供测试页挂载用） |
 | `debug.html` | 调试台：运行时命令 + 持久化设置 |
 
 
@@ -180,7 +189,7 @@ P:\Playground\
 
 | 文件 | 写入方 | 内容 |
 |---|---|---|
-| `settings.json` | `portal.html` / `debug.html` | `thinkSeconds` / `optionalYaku` / `showMa` / `tiisuin` / `showDebug` / `showWallViewer` / `recordTiles` |
+| `settings.json` | `portal.html` / `debug.html` | `thinkSeconds` / `optionalYaku` / `showMa` / `showDebug` / `showWallViewer` / `recordTiles`（`daxingqi` 已于 2026-09-27 删除） |
 | `state.json` | `engine.js` | 会话存档（`playerUUID`/`modeTarget`/`handsPlayed`/`handNumber`/`scores`/`dealerIndex`/`honba`/`roundWindIdx`/`dealerCount`/`inProgress`）+ `game_cmd` |
 | `stats.json` | `engine.js` | `tiisuinCount` / `wins` / `rounds` / `byPlayer` |
 
@@ -212,8 +221,8 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 
 | 步骤 | 断言内容 |
 |---|---|
-| yaku | `scripts/yaku_test.html`：49 用例 / 129 断言（役种、赋、点数、赐马、全带赤、南北通 +7000、水滴石破、国士两特例、tiisuin、美人七对、驷马越岭、四明杠、连庄奖励、段位点） |
-| engine | `scripts/engine_test.html`：17 用例 / 57 断言（牌山模型 C、场次初始点数与终局场风、门风轮转、四风连打、三家和流局、十三不靠、双和子跳庄、出岭、tiisuin直接获胜、拔厄、未听返杠、连庄奖励、赐马口径、统一流局按钮渲染） |
+| yaku | `scripts/yaku_test.html`：51 用例 / 133 断言（役种、赋、点数、赐马、全带赤、南北通 +7000、水滴石破、国士两特例、大七星、美人七对、驷马越岭、四明杠、连庄奖励、段位点、测试隔离） |
+| engine | `scripts/engine_test.html`：18 用例 / 73 断言（牌山模型 C、场次初始点数与终局场风、门风轮转、四风连打、三家和流局、十三不靠、双和子跳庄、出岭、大七星直接获胜+回门户钩子+统计不落盘、拔厄、未听返杠、连庄奖励、赐马口径、统一流局按钮渲染、终局「只补一手」延长） |
 | smoke | `index.html?auto=1&mode=4` 连跑 N 局：无 JS 报错 + 回合已渲染 |
 
 单项：`scripts/run_yaku_test.ps1 -Quiet` / `scripts/run_engine_test.ps1 -Quiet` / `scripts/smoke.ps1 -Runs N`。
@@ -297,4 +306,4 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 - DeepSeek Harness 仓库：https://github.com/deepseek-ai/deepseek-harness
 - DeepSeek Harness 文档：https://deepseek-harness.github.io/deepseek-harness/
 
-> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
+> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_053053.tar.gz`

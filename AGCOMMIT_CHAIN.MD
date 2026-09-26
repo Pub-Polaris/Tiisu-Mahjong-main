@@ -12,19 +12,22 @@
 
 | 时间 | 变更 | 旧认知会怎么错 |
 |---|---|---|
-| 2026-09-27 | **`daxingqi` → `tiisuin`** | 标识符（18 处）、展示名（79 处）、方法 `declareDaxingqi` → `declareTiisuin` 全部改名 |
+| 2026-09-27 | **`daxingqi` → `tiisuin`** | **仅标识符/方法名改名**：`daxingqi`→`tiisuin`（18 处）、`declareDaxingqi`→`declareTiisuin`。**展示名一律用中文「大七星」**，不要把 `tiisuin` 当玩家可见文案（2026-09-27 由 opencode 校正） |
 | 2026-09-27 | **`settings.daxingqi` 键已删除** | 别再写它（`server.py` 默认值、`settings.json`、`portal.html`、`debug.html` 均已移除）；写了是无效键 |
 | 2026-09-27 | **统计键迁移** | `stats.json`：`daxingqiCount` → `tiisuinCount`、`byPlayer[].daxingqi` → `.tiisuin`（**计数保留**） |
 | 2026-09-27 | **大七星不再计分** | `winchecker` 里 `specialPoints = winCtx.daxingqi ? 70000 : null` 已删除 → 一律 `null`；行为 = 做成七种字牌七对子 → **无条件**结束本局 + 回门户 + 记统计 |
 | 2026-09-27 | **CHANGELOG 已拆** | 主 `CHANGELOG.md` 只留最近若干条 + 待办区；`260926-06` 及更早 12 条在 **`CHANGELOG_ARCHIVE.md`**（按需查，别每次读） |
-| 2026-09-27 | **用例数已变** | `yaku_test.html` **50 用例 / 130 断言**；`engine_test.html` 17 用例 / 57 断言 |
-| 2026-09-27 | **备份清单已修** | `AGENTS.md` 2.1 的 tar 清单原先漏了 `scripts`，现补上——别按旧清单打包 |
+| 2026-09-27 | **用例数已变（再变）** | `yaku_test.html` **51 用例 / 133 断言**；`engine_test.html` **18 用例 / 73 断言**（`260927-11`：终局延长用例改为「只补一手」，并加南入/西入/北增标签断言） |
+| 2026-09-27 | **备份清单已修** | `AGENTS.md` 2.1 改为「排除 `backup/`+`logs/` 后**整目录打包**」——旧清单是逐列文件名，漏过 `scripts`、也漏过 `AGENTS.md`/`CLAUDE.md`/`AGCOMMIT_CHAIN.MD` |
+| 2026-09-27 | **回门户已实现** | 大七星 / 出岭 / 终局 → **5 秒**后跳回 `portal.html`（`index.html#onMatchOver`，engine 三处调用）；演示模式 `?auto=1` 不跳 |
 | 2026-09-27 | **新约定** | 提交带 `Agent: <who>` + `Pair: dsh+opencode` 两行 trailer；推送后在**本文件**追加一行，并把上一行的 `（本条）` 回填成真实 hash（规则 8） |
 
-### 有意保留旧名的位置
+### 命名口径（2026-09-27 由 `opencode` 校正）
 
-历史事实不改：`CHANGELOG_ARCHIVE.md`、规则书原文（`*_CN_260721_*.html`）、`规则对照_审查_260926.md` 里仍写旧名「大七星」。
-**因此 `260927-08` 之前的条目都写旧名，之后才用 `tiisuin`。**
+- **标识符 / 键名 / 方法名**：一律用 `tiisuin` —— `tiisuinCount`、`byPlayer[].tiisuin`、`byPlayer[].witness`、`witnessCount`、`declareTiisuin`、`isSevenHonors`。
+- **展示名（玩家可见文案）**：一律用中文 **「大七星」** —— **不要**把 `tiisuin` 当玩家可见文字（北极星 2026-09-27 裁决：展示名一律中文，不把 `tiisuin` 当玩家可见文字）。
+- **已删除的键**：`settings.daxingqi` / `settings.tiisuin`、`winCtx.daxingqi` / `winCtx.tiisuin` —— 别再写。
+- **历史文件不改**：`CHANGELOG_ARCHIVE.md`、规则书原文（`*_CN_260721_*.html`）、本文件已成型的历史行，保持当时写法（那就是当时的事实）。
 
 ## 当一方没有 git 时怎么协作
 
@@ -73,7 +76,9 @@
 | 2026-09-27 06:1x | `dsh` | `3d9c276` | `yaku_test.html` 补 2 条役满优先权反例（三七之花/美人七对被截走）；`CHANGELOG` 待办区更正 4 个役满"已有用例"的失实描述；补记驷马越岭条件 | 发现：交接文档把已有覆盖误列为待补 |
 | 2026-09-27 06:5x | `dsh` | `8a9a909` | tiisuin：大七星去开关改为无条件直接获胜（不计分）；标识符 daxingqi→tiisuin（18）+ 展示名（79）；统计键 tiisuinCount 迁移；历史文件保留旧名 | 名称已切换，后续一律用 tiisuin |
 | 2026-09-27 07:1x | `dsh` | `0dd7a5e` | `AGCOMMIT_CHAIN.MD` 顶部新增「近期破坏性变更」段（8 行表 + 无 git 说明），供无 git 的接手方快速发现改名/去开关 | 无 git 也能对齐认知 |
-| 2026-09-27 07:3x | `dsh` | `（本条）` | `AGCOMMIT_CHAIN.MD` 新增「当一方没有 git 时怎么协作」节（没 git 的一方改完必须留话；有 git 的一方看 status 后再提交，别 add -A 盲提） | 无 git 期间的协作规则已定 |
+| 2026-09-27 07:3x | `dsh` | `a62397d` | `AGCOMMIT_CHAIN.MD` 新增「当一方没有 git 时怎么协作」节（没 git 的一方改完必须留话；有 git 的一方看 status 后再提交，别 add -A 盲提） | 无 git 期间的协作规则已定 |
+| 2026-09-27 08:2x | `opencode` | `f0deea7` | **校正轮，见 `CHANGELOG` `260927-09` + `260927-10` + `260927-11`**（同一批未提交改动，请**一次提交**）：① 展示名回归「大七星」（engine 日志/overlay/记录步、`portal.html` 统计区与 `id`）；② 方法名 `declareDaxingqi`→`declareTiisuin`；③ **实现「回门户等 5 秒」**（新增 `onMatchOver` 钩子，engine 三处调用，演示模式 `?auto=1` 不跳）；④ 补「**见证 +1**」（`server.py` 此前忽略 `witness`，新增 `witnessCount` 与 `byPlayer[].witness`）；⑤ `stats.json` 旧键 `daxingqiCount`/`byPlayer[].daxingqi` **归一化**（`server.py#_normalize_stats` 幂等迁移 + 重写文件）；⑥ **终局延长：未达标只补「一手」（北极星拍板，两次口径，以 `260927-11` 为准）**：`engine.js#advanceRound` 用 `_inExtension` 标记收口 —— 东风→南入、半庄→西入、全庄→北增，**该手以和牌或流局结束即终局、各延长只 1 次**；安全上限由 `modeTarget × 6` 收小为 `modeTarget + 16`；`roundLabel()` 显示「南入/西入/北增N局」；⑦ **断言隔离扩到 `state.json`**：`index.html` 新增 `?nostart=1`（只装配不写运行态）供测试页挂载，两个断言页的网络桩同时拦 `/api/stats` 与 `/api/state`，`run_all.py` 逐字节复核**两个**文件（检查项 `run-state isolation`）；⑧ `smoke.ps1` 单实例检查改为「**占用 7777 的进程 ≤1**」（原全机 python 计数在本机恒 `FAIL 8/9`）→ 实测 **PASS 9/9**；⑨ `AGENTS.md` 2.1 备份改**整目录打包**（排除 `backup/ logs/ .git/ *.zip`）、2.2 只杀占用 7777 的 python；⑩ 修 5 处过期陈述/标题 + 全库计数同步（yaku **51 用例/133 断言**、engine **18 用例/72 断言**）；⑪ `docs/DSH/已知坑.md` 新增 6.10；`规则与实现_当前版本.md` 3.8 口径已定 | **【已提交】**dsh 已 `git status` 逐文件过目后**一次提交**（未用 `git add -A` 盲提）并推送；本格已回填真实 hash（规则 8） |
+| 2026-09-27 08:5x | `dsh` | `（本条）` | 合并 opencode 本轮未提交改动（上一行）；同时按北极星 2026-09-27 裁决写定命名口径：**展示名一律「大七星」、代码标识符一律 `tiisuin`**（英文本地化时再上对照表）；本文件命名口径与页脚同步至 `260927` | 命名争议已定调，后续不再反复 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
+> 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_053053.tar.gz`

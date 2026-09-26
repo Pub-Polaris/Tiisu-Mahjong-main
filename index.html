@@ -193,8 +193,11 @@ body{background:#0f2b10;min-height:100vh;display:flex;justify-content:center;ali
 // ── 启动参数（门户/URL 传入；无参默认东风场 4 局）──
 let LAUNCH = (() => {
     const p = new URLSearchParams(location.search);
-    return { mode: parseInt(p.get('mode')) || 4, test: p.get('test') === '1' };
+    return { mode: parseInt(p.get('mode')) || 4, test: p.get('test') === '1', nostart: p.get('nostart') === '1' };
 })();
+// nostart=1：只装配、不开局、不读写 state.json —— 供测试页（yaku_test / engine_test）挂载用，
+// 这样断言跑完后 stats.json / state.json 都不会被运行态初始化污染。
+const NO_START = LAUNCH.nostart;
 
 // 注意：engine.js / winchecker.js 等由 <script src> 加载。
 // 极少数情况下（磁盘/网络抖动）某个脚本可能未成功执行，导致 WinChecker / TiisuMahjong 未定义。
@@ -300,6 +303,33 @@ function showMsg(msg, important) {
     if (important && msg) { clearTimeout(showMsg._t); showMsg._t = setTimeout(() => { if (el.innerHTML === msg) el.style.display = 'none'; }, 10000); }
 }
 
+// ── 整场结束（大七星直接获胜 / 出岭 / 终局）→ 等待 5 秒后回到门户 ──
+// engine 只调用本函数，不直接依赖 DOM / 跳转（保持逻辑与界面解耦）。
+// 演示模式（?auto=1，game._demoMode）不跳转，避免自动演示被打断。
+function onMatchOver(reason) {
+    if (!game || game._demoMode) return;
+    const SEC = 5;
+    const el = document.getElementById('msg');
+    if (el) {
+        el.style.display = 'block';
+        el.innerHTML = (el.innerHTML || '') +
+            '<div style="font-size:14px;margin-top:8px">' +
+            '（' + (reason || '整场结束') + '）<b id="matchOverLeft">' + SEC + '</b> 秒后返回门户…</div>';
+    }
+    let left = SEC;
+    clearInterval(window._matchOverTimer);
+    window._matchOverTimer = setInterval(() => {
+        left--;
+        const c = document.getElementById('matchOverLeft');
+        if (c) c.textContent = left;
+        if (left <= 0) {
+            clearInterval(window._matchOverTimer);
+            window._matchOverTimer = null;
+            location.href = 'portal.html';
+        }
+    }, 1000);
+}
+
 // 开局显示一次各家 UUID：对"其他人类"隐去中间段(A-****-****-D)；AI 对玩家不隐藏
 function showPlayerUUIDs(playerUUID) {
     const rows = game.players.map(p => {
@@ -315,6 +345,7 @@ function showPlayerUUIDs(playerUUID) {
 
 // ── 模式启动 ──
 function startMode(target, isTest) {
+    if (window._matchOverTimer) { clearInterval(window._matchOverTimer); window._matchOverTimer = null; }
     game.setMode(target);
     game.handNumber++;
     game.startNewRound();
@@ -723,6 +754,7 @@ window.addEventListener('load', async () => {
         }
     }
     function startFresh() {
+        if (NO_START) { renderAll(); return; }   // 测试页挂载：不开局、不写 state.json
         // 清除陈旧存档（避免下次加载误弹恢复提示）
         try { fetch('/api/state', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ inProgress:false }) }).catch(()=>{}); } catch(e) {}
         showPlayerUUIDs(playerUUID);
@@ -828,7 +860,7 @@ window.addEventListener('load', async () => {
             }
         } catch(e) {}
     }
-    setInterval(pollCommands, 1000);
+    if (!NO_START) setInterval(pollCommands, 1000);
 
     // ── 键盘快捷键（N=下一局 A=全自动 R=重置 F=流局）──
     document.addEventListener('keydown', (e) => {
@@ -843,7 +875,7 @@ window.addEventListener('load', async () => {
         else if (k === 'f') { game.humanFlow(); }
     });
 
-    maybeResume();
+    if (NO_START) renderAll(); else maybeResume();
 });
 </script>
 </body>

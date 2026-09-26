@@ -86,9 +86,10 @@ a.btn-link:hover{transform:translateY(-2px)}
     </div>
 
     <div class="card">
-        <h2>📊 tiisuin / 对局统计（累计 · 存于 stats.json）</h2>
+        <h2>📊 大七星 / 对局统计（累计 · 存于 stats.json）</h2>
         <div class="stats-grid">
-            <div class="stat-box"><div class="v" id="stDaxingqi">0</div><div class="k">tiisuin</div></div>
+            <div class="stat-box"><div class="v" id="stTiisuin">0</div><div class="k">大七星（做出）</div></div>
+            <div class="stat-box"><div class="v" id="stWitness">0</div><div class="k">大七星（见证）</div></div>
             <div class="stat-box"><div class="v" id="stWins">0</div><div class="k">和牌数</div></div>
             <div class="stat-box"><div class="v" id="stRounds">0</div><div class="k">局数</div></div>
             <div class="stat-box"><div class="v" id="stPlayers">0</div><div class="k">玩家数</div></div>
@@ -192,14 +193,16 @@ async function saveSettings() {
 async function loadStats() {
     try {
         var st = await api('/api/stats');
-        document.getElementById('stDaxingqi').textContent = st.tiisuinCount || 0;
+        document.getElementById('stTiisuin').textContent = st.tiisuinCount || 0;
+        document.getElementById('stWitness').textContent = st.witnessCount || 0;
         document.getElementById('stWins').textContent = st.wins || 0;
         document.getElementById('stRounds').textContent = st.rounds || 0;
         var bp = st.byPlayer || {};
         document.getElementById('stPlayers').textContent = Object.keys(bp).length;
         var rows = Object.keys(bp).map(function(n){
             var e = bp[n] || {};
-            return '· ' + n + '：和牌 ' + (e.wins||0) + ' · tiisuin ' + (e.tiisuin||0);
+            return '· ' + n + '：和牌 ' + (e.wins||0) + ' · 大七星(做出) ' + (e.tiisuin||0)
+                 + (e.witness ? (' · 大七星(见证) ' + e.witness) : '');
         });
         document.getElementById('stByPlayer').textContent = rows.length ? rows.join('\n') : '（暂无明细）';
     } catch(e) { console.warn('loadStats failed', e); }
