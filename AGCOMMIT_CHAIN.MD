@@ -12,6 +12,8 @@
 3. 同一提交**不允许**两个 agent 署名；若要并行改同一文件，先约定次序（见 `AGENTS.md` 七）。
 4. commit message 里带 **git trailer**：`Agent: dsh` 或 `Agent: opencode`。可用 `git log --grep='^Agent:'` 过滤。
 5. **本行（当前头部提交）不写 hash**，写 `（本条）`——因为 amend 会改 hash，写进去就无法收敛；要看 hash 用 `git log -1`。
+6. **推之前先 `git pull --rebase origin main`**。被拒时用 rebase（**不要** `--force`）——远程已有他人的提交时强推会抹掉对方的工作。
+7. **trailer 取值**：`Agent: dsh` / `Agent: opencode` / `Agent: 北极星`（北极星在 GitHub 网页上直接提交时署名）。每个提交另带一行 `Pair: dsh+opencode`，表示本仓库由两方 agent 协同维护。
 
 ## 链条
 
@@ -27,7 +29,8 @@
 | 2026-09-27 03:4x | `dsh` | `39a3680` | `已知坑.md` 新增 6.8 / 6.9（PS 5.1 按 GBK 读文件、行尾 CRLF/LF 不统一）；新增 `260927-03` | — |
 | 2026-09-27 03:4x | `dsh` | `cdada80` | `CHANGELOG` 条目顺序修正（`260927-02` 应在 `-03` 之前） | — |
 
-| 2026-09-27 04:1x | `dsh` | `（本条）` | 修 3 处文档错误（`AGENTS.md` 42→57、`工具调用说明.md` 日期、`docs/README.md` 改跑 `run_all.py`）；`AGENTS.md` 七.8 加 Agent trailer 约定；新建 `AGCOMMIT_CHAIN.MD`；新增 `260927-04` | 链条机制自本条起生效 |
+| 2026-09-27 04:1x | `dsh` | `b090de0` | 修 3 处文档错误（`AGENTS.md` 42→57、`工具调用说明.md` 日期、`docs/README.md` 改跑 `run_all.py`）；`AGENTS.md` 七.8 加 Agent trailer 约定；新建 `AGCOMMIT_CHAIN.MD`；新增 `260927-04` | 链条机制自本条起生效 |
+| 2026-09-27 04:5x | `dsh` | `（本条）` | `AGCOMMIT_CHAIN.MD` 规则 6/7（推前 rebase、trailer 取值含北极星）；`AGENTS.md` 七.8 改双 trailer（`Agent` + `Pair`）；`CHANGELOG` 260927-04 同步 | 护栏已齐，等 opencode 接 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
 > 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
