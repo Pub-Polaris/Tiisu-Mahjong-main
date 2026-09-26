@@ -224,7 +224,7 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 
 | # | 标准 | 依据 |
 |---|---|---|
-| 1 | 断言页全绿 | `run_all.py` 的 yaku（129/129）+ engine（42/42） |
+| 1 | 断言页全绿 | `run_all.py` 的 yaku（129/129）+ engine（57/57） |
 | 2 | 无 JS 报错 | 无 `Uncaught/ReferenceError/TypeError/SyntaxError` |
 | 3 | 人工模式能发牌 | 14 个可点击手牌 + `#wallCount` 有值 |
 | 4 | 全自动不卡局 | 能到和牌或流局（`--runs N` 全部干净） |
@@ -273,6 +273,8 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 5. 若改役种：`ike.json`（数据）与 `src/winchecker.js` 的 `conditionFn`（判定）**必须配套**。
 6. **不得对仓库重新 `git init` 或强推覆盖历史**。远程为 `Pub-Polaris/Tiisu-Mahjong-main`（`main` 分支），其 `Initial commit`（MIT LICENSE）必须保留；与远端不一致时用 fetch + merge 解决。版本载体为 **git 提交 + `backup/*.tar.gz` 双轨**，两者都不得移除。
 7. **提交与交付**：一次改动的"交付"= 跑完 `run_all.py` 全绿 → 追加 CHANGELOG → 同步受影响文档与页脚 → 落一份 `backup_*.tar.gz` → **`git commit` 并 `git push origin main`**。只提交不推送（或只备份不提交）都算未交付。
+
+8. **每个提交带 Agent trailer**：commit message 末尾加一行 `Agent: dsh` 或 `Agent: opencode`（可用 `git log --grep='^Agent:'` 过滤）。同时在根目录 `AGCOMMIT_CHAIN.MD` **追加一行摘要**（时间 / Agent / commit / 改了什么 / 留给谁）；该文件**只追加、不回改别人的行**，且**不进"必读清单"**（按需查，避免会话成本随提交数增长）。
 
 
 ---

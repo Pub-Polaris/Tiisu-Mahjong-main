@@ -23,7 +23,7 @@
 4. `docs/DSH/已知坑.md`（已踩过的坑）
 5. `docs/北极星_(人类)/个人指南_北极星.md`（代码结构与"改哪"）
 6. 涉及规则时：`docs/北极星_(人类)/规则缺口清单.md` + 规则书附录
-7. 改完跑 `scripts/smoke.ps1`
+7. 改完跑 `scripts/run_all.py`（一键校验，见 `AGENTS.md` 第五节）
 
 **如果你是 Deepseek Harness（DSH）**
 1. `AGENTS.md`（**主契约**）
