@@ -2,6 +2,7 @@
 
 > **摘要**：两个 coding agent（DeepSeek Harness / opencode）之间的**改动交换链条**——每次提交一条，用于查"这条改动是谁做的、那时怎么验证的、留了什么给谁"。
 > **面向**：两个 agent + 北极星。
+> **没有 git 也能看**：本文件是普通文本，直接在 `P:\Playground\AGCOMMIT_CHAIN.MD` 打开即可——链条内容不依赖 git 命令。
 > **定位**：**按需查，不进"必读清单"**。它不参与每次开工的固定输入，避免会话成本随提交数增长。
 > **基线**：代码 `P:\Playground`，仓库 `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`。
 
@@ -14,7 +15,7 @@
 5. **本行（当前头部提交）不写 hash**，写 `（本条）`——因为 amend 会改 hash，写进去就无法收敛；要看 hash 用 `git log -1`。
 6. **推之前先 `git pull --rebase origin main`**。被拒时用 rebase（**不要** `--force`）——远程已有他人的提交时强推会抹掉对方的工作。
 7. **trailer 取值**：`Agent: dsh` / `Agent: opencode` / `Agent: 北极星`（北极星在 GitHub 网页上直接提交时署名）。每个提交另带一行 `Pair: dsh+opencode`，表示本仓库由两方 agent 协同维护。
-
+8. **别人提交后，把上一行的 `（本条）` 回填成真实 hash**（`git log --oneline -1` 查）。这样表里永远只有**最后一行**是占位符，历史行都有确切 hash。
 ## 链条
 
 | 时间 | Agent | commit | 改了什么 | 留给谁 |
@@ -30,7 +31,8 @@
 | 2026-09-27 03:4x | `dsh` | `cdada80` | `CHANGELOG` 条目顺序修正（`260927-02` 应在 `-03` 之前） | — |
 
 | 2026-09-27 04:1x | `dsh` | `b090de0` | 修 3 处文档错误（`AGENTS.md` 42→57、`工具调用说明.md` 日期、`docs/README.md` 改跑 `run_all.py`）；`AGENTS.md` 七.8 加 Agent trailer 约定；新建 `AGCOMMIT_CHAIN.MD`；新增 `260927-04` | 链条机制自本条起生效 |
-| 2026-09-27 04:5x | `dsh` | `（本条）` | `AGCOMMIT_CHAIN.MD` 规则 6/7（推前 rebase、trailer 取值含北极星）；`AGENTS.md` 七.8 改双 trailer（`Agent` + `Pair`）；`CHANGELOG` 260927-04 同步 | 护栏已齐，等 opencode 接 |
+| 2026-09-27 04:5x | `dsh` | `233dd87` | `AGCOMMIT_CHAIN.MD` 规则 6/7（推前 rebase、trailer 取值含北极星）；`AGENTS.md` 七.8 改双 trailer（`Agent` + `Pair`）；`CHANGELOG` 260927-04 同步 | 护栏已齐，等 opencode 接 |
+| 2026-09-27 05:0x | `dsh` | `（本条）` | 补链条规则 8（别人提交后回填上一行 hash）与「没有 git 也能看」说明；`AGENTS.md` 七.8、`CHANGELOG` 同步 | opencode 可直读磁盘；本轮由 dsh 独做 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
 > 页脚：文档版本 `260927`（2026-09-27） · 对应备份 `backup_20260927_011140.tar.gz`
