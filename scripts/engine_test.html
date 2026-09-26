@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>引擎规则测试 · 七子麻将</title>
+<style>
+body{background:#10240f;color:#dfe;font-family:Consolas,monospace;margin:0;padding:12px}
+h3{margin:4px 0;color:#ffe9a0}
+pre{white-space:pre-wrap;font-size:13px;line-height:1.5}
+.pass{color:#8dff8d}.fail{color:#ff8d8d}
+</style>
+</head>
+<body>
+<h3 id="summary">running</h3>
+<iframe id="f" src="../index.html" style="width:1px;height:1px"></iframe>
+<pre id="out"></pre>
+<script>
+var YT = { pass:0, fail:0, lines:[], cases:[] };
+function ytT(name, fn){ YT.cases.push({name:name, fn:fn}); }
+function ytEq(name, actual, expected){
+    if (actual === expected) { YT.pass++; YT.lines.push('  PASS ' + name); }
+    else { YT.fail++; YT.lines.push('  FAIL ' + name + '  实际=' + JSON.stringify(actual) + ' 期望=' + JSON.stringify(expected)); }
+}
+function ytOk(name, cond, detail){
+    if (cond) { YT.pass++; YT.lines.push('  PASS ' + name); }
+    else { YT.fail++; YT.lines.push('  FAIL ' + name + '  ' + (detail||'')); }
+}
+
+function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+(async function(){
+    var sumEl = document.getElementById('summary');
+    var outEl = document.getElementById('out');
+    try {
+        var w = document.getElementById('f').contentWindow;
+        for (var i=0;i<150;i++){ try{ if (w.__game && w.__game.checker) break; }catch(e){} await wait(200); }
+        var g = w.__game;
+        if (!g) { throw new Error('__game 未就绪'); }
+        var T = function(s){ return w.parseTileString(s); };
+        // 注意：class 声明在经典脚本里是"词法全局"，不会挂到 window 上，
+        // 跨 frame 取不到 w.TiisuPlayer / w.TiisuMahjong；故从实例反查原型。
+        var ProtoPlayer = Object.getPrototypeOf(g.players[0]);
+        var ProtoGame = Object.getPrototypeOf(g);
+        // 隔离：停掉 iframe 内的 AI/定时器，避免测试期间后台推进、以及退出时崩溃
+        try { g._demoMode = false; g._allAI = false; g.clearAllTimers(); g.hideActionBar(); g.state = 'idle'; } catch(e) {}
+        var mkP = function(n, human){ var p = Object.create(ProtoPlayer); p.name=n; p.isHuman=!!human;
+            p.hand=[]; p.discards=[]; p.melds=[]; p.kans=[]; p.ankanCount=0; p.minkanCount=0; p.firstTurn=true; return p; };
+
+        // ══════ 1. 牌山模型（跳墩 / 活牌山 / 王堆 / 岭上）══════
+        ytT('牌山模型 C：可摸总数恒为 132，配牌后恒为 79；岭上恒 4', function(){
+            g.setMode(4);
+            [[1,1],[3,4],[6,6]].forEach(function(d){
+                g.dealerIndex = 0;
+                g.setupWallAndCut(d);
+                ytEq('骰'+d[0]+'+'+d[1]+' 配牌前可摸总数', g.wall.length, 132);
+                g.deal();
+                ytEq('骰'+d[0]+'+'+d[1]+' 配牌后可摸总数', g.wall.length, 79);
+                ytEq('骰'+d[0]+'+'+d[1]+' 岭上张数', g.rinshan.length, 4);
+                var c = g.cutInfo;
+                ytEq('骰'+d[0]+'+'+d[1]+' 王堆 = 2S-4', g.wangDui.length, Math.max(0, c.skipTiles - 4));
+            });
+        });
+
+        // ══════ 2. 场次 / 门风 / 终局条件 ══════
+        ytT('场次初始点数与终局场风', function(){
+            g.setMode(4);
+            ytEq('东风战初始点数 49000', g.initialPoints, 49000);
+            ytEq('东风战终局场风 0(东)', g.finalWindIdx, 0);
+            g.setMode(8);
+            ytEq('半庄战终局场风 1(南)', g.finalWindIdx, 1);
+            g.setMode(16);
+            ytEq('全庄战初始点数 77000', g.initialPoints, 77000);
+            ytEq('全庄战终局场风 3(北)', g.finalWindIdx, 3);
+        });
+        ytT('门风轮转：庄家=场风，其后依次南/西/北', function(){
+            g.dealerIndex = 0; g.roundWindIdx = 0; g.updateSeatWinds();
+            ytEq('庄0场东 玩家0', g.players[0].seatWind, 'east');
+            ytEq('庄0场东 玩家1', g.players[1].seatWind, 'south');
+            g.dealerIndex = 1; g.roundWindIdx = 0; g.updateSeatWinds();
+            ytEq('庄1场东 玩家0', g.players[0].seatWind, 'north');
+            ytEq('庄1场东 玩家1', g.players[1].seatWind, 'east');
+        });
+        ytT('roundLabel：场风 + 本场次', function(){
+            g.roundWindIdx = 0; g.dealerCount = 0; ytEq('东1局', g.roundLabel(), '东1局');
+            g.roundWindIdx = 0; g.dealerCount = 3; ytEq('东4局', g.roundLabel(), '东4局');
+            g.roundWindIdx = 1; g.dealerCount = 4; ytEq('南1局', g.roundLabel(), '南1局');
+        });
+
+        // ══════ 3. 特殊流局：四风连打 / 三家和 ══════
+        ytT('四风连打：四家同一巡打出 4 张相同风牌 → 特殊流局、庄家连庄、本场不变', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.roundDiscards = [];
+            var east = T('1z')[0];
+            for (var k=0;k<4;k++) g.roundDiscards.push({ player:k, tile:east });
+            var honbaBefore = g.honba, dealerBefore = g.dealerIndex;
+            var fired = g.checkSpecialFlow();
+            ytOk('触发特殊流局', fired === true, 'fired='+fired);
+            ytEq('本场不变', g.honba, honbaBefore);
+            ytEq('庄家不变（连庄）', g.dealerIndex, dealerBefore);
+        });
+        ytT('三家和牌 → 自动流局', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.roundDiscards = [];
+            var w3 = [0,1,2].map(function(i){ return { playerIdx:i, result:{ totalFu:10, activeYaku:[] } }; });
+            g.declareMultiRon(w3, 3);
+            ytOk('进入结束态', g.state === 'ended' && g.gameOver === true, 'state='+g.state);
+            ytEq('无人得分变化（流局）', g.scores[0] + g.scores[1] + g.scores[2] + g.scores[3], g.initialPoints*4);
+        });
+
+        // ══════ 4. 双和子跳庄 ══════
+        ytT('双和子跳庄：子家手牌≥庄家 → 庄家放弃和牌并付 3500', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.dealerIndex = 0;
+            var before = g.scores.slice();
+            var winners = [
+                { playerIdx:0, result:{ totalFu:14, activeYaku:[] } },   // 庄家
+                { playerIdx:1, result:{ totalFu:20, activeYaku:[] } }    // 子家，较大
+            ];
+            g.declareMultiRon(winners, 2);
+            ytEq('庄家 −3500（另加正常赔付前先看跳庄）', (before[0] - g.scores[0]) >= 3500, true);
+            ytOk('子家获利', g.scores[1] > before[1], 'sub='+g.scores[1]);
+        });
+
+        // ══════ 5. 出岭（击飞）══════
+        ytT('出岭：分数跌破 0 → 记 −7000 点并立即终局', function(){
+            g.setMode(4);
+            g.scores = [49000, 49000, 49000, -100];
+            var hit = g.checkDeungnyeong();
+            ytOk('触发出岭', hit === true, 'hit='+hit);
+            ytEq('该家记 −7000', g.scores[3], -7000);
+            ytOk('比赛结束', g.matchOver === true && g.state === 'ended', '');
+        });
+
+        // ══════ 6. 大七星直接获胜 ══════
+        ytT('大七星：开启算赋时 → 双役满 70000 + 立即结束整场', function(){
+            g.setMode(4); g.settings.daxingqi = true;
+            g.declareWin(0, false, { totalFu:70, sevenHonors:true, activeYaku:[{name:'大七星',fu:70}] }, 1);
+            ytOk('整场结束', g.matchOver === true, 'matchOver='+g.matchOver);
+            g.settings.daxingqi = false;
+        });
+
+        // ══════ 7. 拔厄 ══════
+        ytT('拔厄：四家打出西风 → 最后打西风者向其他家各付 700', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.roundDiscards = [];
+            g._westDiscarders = {}; g._westDiscardCount = 0; g._lastWestDiscarder = -1;
+            var before = g.scores.slice();
+            var west = T('3z')[0];
+            for (var k=0;k<4;k++){ g.roundDiscards.push({ player:k, tile:west }); }
+            // 直接模拟四家都打过西风
+            g._westDiscarders = {0:true,1:true,2:true,3:true};
+            g._westDiscardCount = 4;
+            g._lastWestDiscarder = 2;
+            // 注意：四风连打也会命中同张风牌，故这里先清掉最近 4 手以避免它优先触发
+            g.roundDiscards = [];
+            g.checkSpecialFlow();
+            ytEq('最后打西风者 −2100', before[2] - g.scores[2], 2100);
+            ytEq('其余每家 +700', g.scores[0] - before[0], 700);
+        });
+
+        // ══════ 8. 未听返杠 ══════
+        ytT('未听返杠：杠最多且流局未听 → 700/杠返还，子家另付庄家 700', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.dealerIndex = 0;
+            g.players.forEach(function(p){ p.ankanCount=0; p.minkanCount=0; });
+            g.players[2].minkanCount = 2;               // 子家 2 杠且未听
+            var before = g.scores.slice();
+            var logArr = [];
+            var tenpai = [true, true, false, true];     // 玩家2 未听
+            g.applyNotenKanPenalty(tenpai, logArr);
+            ytEq('玩家2 付 3×1400 + 子家另付庄家700 = 4900', before[2] - g.scores[2], 4900);
+            ytOk('有罚则日志', logArr.length === 1, JSON.stringify(logArr));
+        });
+
+        // ══════ 9. 连庄奖励 / 段位点 已在 yaku_test 覆盖，此处验计分口径 ══════
+        ytT('连庄奖励：不计入赋，按本场 ×700 加在最终点数上', function(){
+            var gg = Object.create(ProtoGame);
+            gg.config = g.config; gg.honba = 2; gg.initialPoints = 49000;
+            ytEq('honbaBonus(本场2) = 1400', gg.honbaBonus(), 1400);
+        });
+
+        // ══════ 10. 赐马：逐张指示牌命中 +1（≠ min）══════
+        ytT('赐马：逐张指示牌命中 +1，手牌张数不影响', function(){
+            var gg = Object.create(ProtoGame);
+            gg.settings = { daxingqi:false };
+            gg.rinshan = [T('4m')[0], T('4m')[0]];      // 两张都指向 5m
+            var winner = mkP('甲');
+            winner.hand = T('123m456m789m11p555m');      // 手里 m5 ×3
+            var r = gg.resolveMa(winner, { handType:'standard_hand' });
+            ytEq('两张指示牌都命中 → 2 赋（不是 min(2,3)=2 也不是按手牌张数）', r.fu, 2);
+            var winner2 = mkP('乙');
+            winner2.hand = T('123m456m789m11p5m');       // 手里 m5 ×1
+            ytEq('手里 1 张同样 2 赋（手牌张数无关）', gg.resolveMa(winner2, { handType:'standard_hand' }).fu, 2);
+        });
+
+        // ══════ 11. 十三不靠 / 统一流局按钮（4.3 推牌流局）══════
+        ytT('十三不靠 · 9 张不靠顺 + 4 张不同字牌 = 13 张', function(){
+            ytOk('147m258p369s + 1z2z3z4z → 成立',
+                g.isThirteenUnrelated(T('147m258p369s1234z')) === true, '');
+            ytOk('进度可在三花色间任意排列（258m369p147s）→ 成立',
+                g.isThirteenUnrelated(T('258m369p147s1234z')) === true, '');
+            ytOk('字牌成对（1z1z2z3z）→ 不成立',
+                g.isThirteenUnrelated(T('147m258p369s1123z')) === false, '');
+            ytOk('字牌不足 4 张 → 不成立',
+                g.isThirteenUnrelated(T('147m258p369s1234m')) === false, '');
+            ytOk('14 张 → 不成立',
+                g.isThirteenUnrelated(T('147m258p369s12345z')) === false, '');
+            ytOk('非 147/258/369 进度（149m）→ 不成立',
+                g.isThirteenUnrelated(T('149m258p369s1234z')) === false, '');
+            ytOk('三花色都用同一进度（147m147p147s）→ 不成立',
+                g.isThirteenUnrelated(T('147m147p147s1234z')) === false, '');
+        });
+        ytT('flowOptions · 统一流局按钮的条件汇总', function(){
+            ytEq('十三不靠手牌 → ["十三不靠"]',
+                JSON.stringify(g.flowOptions(T('147m258p369s1234z'))), '["十三不靠"]');
+            ytEq('九种九牌手牌 → ["九种九牌"]',
+                JSON.stringify(g.flowOptions(T('19m19p19s1234567z'))), '["九种九牌"]');
+            ytEq('普通手牌 → []',
+                JSON.stringify(g.flowOptions(T('123m456p789s1122z'))), '[]');
+        });
+        ytT('推牌流局 · 庄家连庄、本场不增加、不转移点数', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.honba = 2; g.dealerIndex = 1;
+            var before = g.scores.slice();
+            g.declarePushFlow('十三不靠', 1);
+            ytEq('本场不变', g.honba, 2);
+            ytEq('庄家不变（连庄）', g.dealerIndex, 1);
+            ytOk('进入结束态', g.state === 'ended' && g.gameOver === true, 'state=' + g.state);
+            ytEq('四家分数不变',
+                JSON.stringify(g.scores), JSON.stringify(before));
+        });
+
+        ytT('统一流局按钮 · 十三不靠时渲染出「流局(十三不靠)」', function(){
+            g.setMode(4); g.setupWallAndCut([3,4]); g.deal();
+            g.players[0].hand = T('147m258p369s1234z');
+            g.state = 'human_discard'; g.turnIndex = 0;
+            w.renderActionArea();
+            var el = w.document.getElementById('seatActions');
+            var html = el ? el.innerHTML : '';
+            ytOk('按钮文案含「流局(十三不靠)」', html.indexOf('流局(十三不靠)') !== -1, html.slice(0, 200));
+            // 还原，避免污染后续状态
+            g.players[0].hand = T('123m456p789s1122z');
+            g.state = 'idle';
+            w.renderActionArea();
+        });
+
+        ytDefineRun();
+    } catch(e) {
+        var msg = 'ENGINETEST: ERROR ' + (e && e.message ? e.message : String(e));
+        document.getElementById('summary').textContent = msg;
+        document.getElementById('summary').className = 'fail';
+        document.getElementById('out').textContent = msg + '\n' + (e && e.stack ? e.stack : String(e));
+        return;
+    }
+
+    function ytDefineRun(){
+        var started = Date.now();
+        for (var i=0;i<YT.cases.length;i++){
+            YT.lines.push('# ' + YT.cases[i].name);
+            try { YT.cases[i].fn(); }
+            catch(e){ YT.fail++; YT.lines.push('  ERROR ' + (e && e.message ? e.message : String(e))); }
+        }
+        // 收尾：再次清定时器，避免浏览器退出时因挂起任务崩溃
+        try { var gg = document.getElementById('f').contentWindow.__game; if (gg) { gg._demoMode=false; gg.clearAllTimers(); } } catch(e) {}
+        var ms = Date.now() - started;
+        var total = YT.pass + YT.fail;
+        var head = 'ENGINETEST: ' + (YT.fail === 0 ? 'PASS' : 'FAIL') +
+            ' ' + YT.pass + '/' + total + ' 断言 · ' + YT.cases.length + ' 用例 · ' + ms + 'ms';
+        var sumEl = document.getElementById('summary');
+        sumEl.textContent = head;
+        sumEl.className = YT.fail === 0 ? 'pass' : 'fail';
+        document.getElementById('out').textContent = head + '\n' + YT.lines.join('\n');
+        console.log(head);
+    }
+})();
+</script>
+</body>
+</html>

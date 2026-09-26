@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Syntax Probe · 七子麻将</title>
+</head>
+<body>
+<p>语法探针：逐一加载 src/*.js 并以 new Function() 判定可解析。结果见下方。</p>
+<pre id="out">running</pre>
+<script>
+(async function () {
+    var out = document.getElementById('out');
+    var files = ['tiles.js', 'uuid.js', 'notation.js', 'tenpai.js',
+                 'aiPlayer.js', 'winchecker.js', 'engine.js', 'handAnalyzer.js'];
+    var lines = [];
+    for (var i = 0; i < files.length; i++) {
+        var f = files[i];
+        try {
+            var t = await (await fetch('../src/' + f + '?ts=' + Date.now())).text();
+            if (!t || t.length < 10) { lines.push(f + ' ERROR: empty response'); continue; }
+            new Function(t);
+            lines.push(f + ' OK');
+        } catch (e) {
+            lines.push(f + ' ERROR: ' + (e && e.message ? e.message : String(e)));
+        }
+    }
+    out.textContent = lines.join('\n');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# ── 备份归档（版本承载物，不入库）──
+backup/
+
+# ── 运行日志 ──
+logs/
+
+# ── 运行期状态 / 本机设置（不入库）──
+state.json
+settings.json
+
+# ── 本地临时 ──
+*.tmp
+*.log
+Thumbs.db
+.DS_Store
+# ── 对外发包 / 临时压缩包（不建议入库）──
+*.zip
