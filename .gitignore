@@ -7,6 +7,7 @@ logs/
 # ── 运行期状态 / 本机设置（不入库）──
 state.json
 settings.json
+stats.json
 
 # ── 本地临时 ──
 *.tmp
