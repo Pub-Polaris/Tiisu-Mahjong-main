@@ -494,6 +494,17 @@ function ytDefineCases() {
         ytOk('含美人七对', ytHas(r, '美人七对（镜中丽人）'), ytNames(r));
         ytEq('双役满 = 70000 点', r.specialPoints, 70000);
     });
+    ytT('一色四同刻/一色二同高 · 按最大赋数归四暗刻（不设独立役）', () => {
+        // 北极星 2026-10-02 裁定：同一手牌可读作「4 组连续刻子」或「4 组相同顺子」，
+        // 两者物理上是同一堆牌。按【最大赋数】结算 → 四暗刻(28) 优先于该形(14)，
+        // 故不新增独立役，按标准形结算。本例锁定该行为，防止优先权链被改后静默偏移。
+        const r = ytCheck({ hand: ytBuild('m',111,'m',222,'m',333,'m',444,'z',11),
+                            selfDraw:false, winTile:'m1' });
+        ytOk('含四暗刻', ytHas(r, '四暗刻'), ytBrief(r));
+        ytEq('四暗刻 = 28 赋', ytFuOf(r, '四暗刻'), 28);
+        ytOk('不出现「一色四连刻」（该形无独立役）', !ytHas(r, '一色四连刻'), ytNames(r));
+        ytOk('总赋 ≥ 28（四暗刻 28 + 形状附带的下位役）', r.totalFu >= 28, String(r.totalFu));
+    });
     ytT('驷马越岭 · 四杠+大单钓自摸（荣和不成立）', () => {
         const kans = [
             { type:'ankan', tiles:[ytTile('m1'),ytTile('m1'),ytTile('m1'),ytTile('m1')] },
