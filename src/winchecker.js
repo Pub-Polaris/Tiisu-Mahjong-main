@@ -344,7 +344,12 @@ class WinChecker {
                     if(a.suit===b.suit&&b.suit===c.suit){const ns=[a.num,b.num,c.num].sort((x,y)=>x-y);
                         if(ns[0]+1===ns[1]&&ns[1]+1===ns[2])return true;}}
                 return false;},
-            two_ankou:()=>{const m=countTiles(this._concealedHand||[]);let n=0;for(let c of m.values())if(c>=3)n++;n+=(this._ankanCount||0);return n>=2;},
+            // 暗刻系：手上暗刻的组数 = 暗手里 3 张同牌的组数 + 暗杠数。
+            // 北极星 2026-10-02：「暗刻系也算手上的暗刻（双碰例子发现）」——
+            // 双碰和牌时，被和牌张补全的那一组此刻也是手上可见的暗刻，必须计入。
+            // 注意：本判据【不看 g】，故不能在开头 return false on !g（旧写法有该缺陷）。
+            two_ankou:()=>this._concealedAnkouCount()>=2,
+            three_ankou:()=>this._concealedAnkouCount()>=3,
             missing_suit:h=>{const s=new Set();for(let t of h)if(t.suit!=='z')s.add(t.suit);return s.size<=2;},
             two_color_ko:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');if(p.length<2)return false;const ss=new Set();const ns=[];for(let x of p){ss.add(x.tiles[0].suit);ns.push(x.tiles[0].num);}return ss.size===2&&ns.every(n=>n===ns[0]);},
             three_color_straight:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');if(s.length<3)return false;for(let i=0;i<s.length-2;i++)for(let j=i+1;j<s.length-1;j++)for(let k=j+1;k<s.length;k++){const a=s[i].tiles[0],b=s[j].tiles[0],c=s[k].tiles[0];if(a.suit!==b.suit&&b.suit!==c.suit&&a.suit!==c.suit&&a.num===b.num&&b.num===c.num)return true;}return false;},
@@ -371,7 +376,6 @@ class WinChecker {
                 }
                 return true;
             },
-            three_ankou:()=>{const m=countTiles(this._concealedHand||[]);let n=0;for(let c of m.values())if(c>=3)n++;n+=(this._ankanCount||0);return n>=3;},
             // 纯全带幺（北极星 2026-10-02 口径）：整手【无字牌】+ 每个面子含 >=1 个 1/9。
             //   注意是「每个面子含幺九」而不是「每张牌都是 1/9」—— 故 123s/789m 这类顺子算。
             //   与混全带幺以「全手是否含字牌」互斥。
@@ -617,6 +621,18 @@ class WinChecker {
         const cnt = countTiles(fullHand || []);
         let n = 0;
         for (const [, c] of cnt) if (c >= 3) n++;
+        return n;
+    }
+
+    // 手牌上的【暗刻】组数 = 暗手中 3 张同牌的组数 + 暗杠数。
+    // 北极星 2026-10-02：「暗刻系也算手上的暗刻（双碰例子发现）」——
+    // 双碰和牌时，被和牌张补全的那一组此刻同样是手上可见的暗刻，必须计入，
+    // 否则 两暗刻/三暗刻 在手牌结构上会漏判。
+    _concealedAnkouCount() {
+        const m = countTiles(this._concealedHand || []);
+        let n = 0;
+        for (const c of m.values()) if (c >= 3) n++;
+        n += (this._ankanCount || 0);
         return n;
     }
 
