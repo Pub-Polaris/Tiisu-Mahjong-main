@@ -187,6 +187,18 @@ class WinChecker {
         let highFound=null;
         for(let hy of(this.yakuData.highYaku||[])){
             if(hy.menzen && hasCalled) continue; // 门清限定
+            // 互斥前置（notIf，2026-10-02）：声明了 notIf 的高役，若其中任一役在本手成立，
+            // 则跳过本役 —— 用于「不改 highYaku 顺序，但让同赋数被截走的役不再被吃」。
+            // 例：清老头/绿一色/字一色/三国将 声明 notIf:["four_ankou"]，遇到四暗刻形就不再命中。
+            if(hy.notIf && hy.notIf.length){
+                let blocked=false;
+                for(const nid of hy.notIf){
+                    const nf=this.conditionFn(nid);
+                    if(!nf)continue;
+                    try{ if(nf(fullHand,groups)===true){blocked=true;break;} }catch(e){}
+                }
+                if(blocked)continue;
+            }
             const fn=this.conditionFn(hy.id);
             if(!fn)continue;
             try{const r=fn(fullHand,groups);if(r===true){highFound=hy;break;}}catch(e){}
