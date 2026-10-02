@@ -546,6 +546,75 @@ function ytDefineCases() {
         ytEq('三国将 = 14 赋', ytFuOf(r, '三国将'), 14);
         ytOk('不含四暗刻（仅三组暗刻）', !ytHas(r, '四暗刻'), ytNames(r));
     });
+    // ══════ 覆盖补齐 · 批次1（常规役，此前断言里从未出现）══════
+    ytT('覆盖·对对和 3 赋（三暗刻 + 一副露碰，避开四暗刻）', () => {
+        // 注意：四组【暗刻】会先命中四暗刻 —— 必须让至少一组成为副露碰，才轮得到对对和。
+        const r = ytCheck({ hand: ytBuild('m',111,'m',222,'p',333,'z',55),
+                            melds:[ytMeld('pon','444s')],
+                            selfDraw:false, winTile:'m1' });
+        ytEq('对对和 = 3 赋', ytFuOf(r, '对对和'), 3);
+        ytEq('三暗刻 = 5 赋（同手并存）', ytFuOf(r, '三暗刻'), 5);
+    });
+    ytT('覆盖·二色同顺 3 赋（两花色同一顺子）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'p',123,'s',456,'s',789,'z',55), winTile:'m3' });
+        ytEq('二色同顺 = 3 赋', ytFuOf(r, '二色同顺'), 3);
+    });
+    ytT('覆盖·一色三节高 3 赋（同花色三连刻）', () => {
+        const r = ytCheck({ hand: ytBuild('s',111,'s',222,'s',333,'s',456,'z',55), winTile:'s1' });
+        ytEq('一色三节高 = 3 赋', ytFuOf(r, '一色三节高'), 3);
+    });
+    ytT('覆盖·两暗刻 3 赋', () => {
+        const r = ytCheck({ hand: ytBuild('m',111,'m',222,'p',333,'s',456,'z',55), winTile:'m1' });
+        ytEq('两暗刻 = 3 赋', ytFuOf(r, '两暗刻'), 3);
+    });
+    ytT('覆盖·缺门 3 赋（只两种花色）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'p',111,'p',55), winTile:'m3' });
+        ytEq('缺门 = 3 赋', ytFuOf(r, '缺门'), 3);
+        // 三门齐时不应有缺门
+        const r2 = ytCheck({ hand: ytBuild('m',123,'p',456,'s',789,'s',111,'z',55), winTile:'s1' });
+        ytEq('三门齐 → 无缺门', ytFuOf(r2, '缺门'), 0);
+    });
+    ytT('覆盖·二色同刻 4 赋（两花色同数字刻）', () => {
+        const r = ytCheck({ hand: ytBuild('m',111,'p',111,'s',234,'s',567,'z',99), winTile:'m1' });
+        ytEq('二色同刻 = 4 赋', ytFuOf(r, '二色同刻'), 4);
+    });
+    ytT('覆盖·一色三步高 4 赋（同花色三连顺）', () => {
+        const r = ytCheck({ hand: ytBuild('s',123,'s',234,'s',345,'m',678,'z',99), winTile:'s3' });
+        ytEq('一色三步高 = 4 赋', ytFuOf(r, '一色三步高'), 4);
+    });
+    ytT('覆盖·一通（一条龙）4 赋（同花色 1-9）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'p',111,'s',99), winTile:'m3' });
+        ytEq('一通 = 4 赋', ytFuOf(r, '一通（一条龙）'), 4);
+    });
+    ytT('覆盖·三色同刻 5 赋（三花色同数字刻）', () => {
+        const r = ytCheck({ hand: ytBuild('m',111,'p',111,'s',111,'m',234,'z',99), winTile:'m1' });
+        ytEq('三色同刻 = 5 赋', ytFuOf(r, '三色同刻'), 5);
+    });
+    ytT('覆盖·混全带幺 5 赋（每组含幺九或字牌）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',789,'p',111,'p',999,'s',99), winTile:'m3' });
+        ytEq('混全带幺 = 5 赋', ytFuOf(r, '混全带幺'), 5);
+    });
+    ytT('覆盖·三暗刻 5 赋', () => {
+        const r = ytCheck({ hand: ytBuild('m',111,'m',222,'p',333,'s',456,'z',55), winTile:'m1' });
+        ytEq('三暗刻 = 5 赋', ytFuOf(r, '三暗刻'), 5);
+    });
+    ytT('覆盖·纯全带幺：判据要求【对子也是 1/9】→ 实际不可达（记录用）', () => {
+        // 本实现的 pure_fully_terminal 要求【每一组含对子】都得是 1/9（比标准纯全带幺更严）。
+        // 而对子若为 1/9，4 组幺九面子必然都是刻子 → 先命中四暗刻(28) 截走。
+        // 故该役在当前口径与优先权下【不可达】。
+        // 1) 对子非幺九 → 判据本身 false
+        const r1 = ytCheck({ hand: ytBuild('m',123,'m',789,'p',111,'p',999,'m',55), winTile:'m3' });
+        ytEq('对子非幺九 → 不计纯全带幺', ytFuOf(r1, '纯全带幺'), 0);
+        ytEq('对子非幺九 → 连混全带幺也不计（两役都要求每组含幺九/字牌）', ytFuOf(r1, '混全带幺'), 0);
+        // 2) 对子为幺九 → 四暗刻截走
+        const r2 = ytCheck({ hand: ytBuild('m',111,'m',999,'p',111,'p',999,'s',11), winTile:'m1' });
+        ytOk('对子幺九时被四暗刻覆盖', ytHas(r2, '四暗刻'), ytNames(r2));
+        ytEq('该形无纯全带幺', ytFuOf(r2, '纯全带幺'), 0);
+    });
+    ytT('覆盖·小三元 8 赋（两元刻 + 一元对）', () => {
+        const r = ytCheck({ hand: ytBuild('z',555,'z',666,'z',77,'m',123,'m',456), winTile:'m3' });
+        ytEq('小三元 = 8 赋', ytFuOf(r, '小三元'), 8);
+    });
     ytT('驷马越岭 · 四杠+大单钓自摸（荣和不成立）', () => {
         const kans = [
             { type:'ankan', tiles:[ytTile('m1'),ytTile('m1'),ytTile('m1'),ytTile('m1')] },
