@@ -357,18 +357,34 @@ class WinChecker {
                 return false;},
             one_dragon:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');const ns={};for(let x of s){const su=x.tiles[0].suit;if(su==='z')continue;if(!ns[su])ns[su]=new Set();for(let t of x.tiles)ns[su].add(t.num);}for(let su in ns){if(ns[su].size>=9){let all=true;for(let i=1;i<=9;i++)if(!ns[su].has(i)){all=false;break;}if(all)return true;}}return false;},
             three_color_ko:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');if(p.length<3)return false;for(let i=0;i<p.length-2;i++)for(let j=i+1;j<p.length-1;j++)for(let k=j+1;k<p.length;k++){const a=p[i].tiles[0],b=p[j].tiles[0],c=p[k].tiles[0];if(a.suit!==b.suit&&b.suit!==c.suit&&a.suit!==c.suit&&a.num===b.num&&b.num===c.num)return true;}return false;},
+            // 混全带幺（北极星 2026-10-02 口径）：整手【有字牌】+ 每组（面子或雀头）
+            //   含 >=1 个 1/9 或字牌。与纯全带幺互斥（以「全手是否含字牌」区分）。
             mixed_fully_terminal:(h,g)=>{
-                if(!g)return false;
-                for(let x of g){
-                    // 每组面子/雀头须含至少一个幺九(1/9)或字牌
-                    let hasTerm=false;
-                    for(let t of x.tiles){if(t.suit==='z'||t.num===1||t.num===9){hasTerm=true;break;}}
-                    if(!hasTerm)return false;
+                if(!g||!g.length)return false;
+                let anyHonor=false;
+                for(const x of g)for(const t of x.tiles)if(t.suit==='z'){anyHonor=true;break;}
+                if(!anyHonor)return false;            // 无字牌 → 归纯全带幺
+                for(const x of g){
+                    let ok=false;
+                    for(const t of x.tiles){if(t.suit==='z'||t.num===1||t.num===9){ok=true;break;}}
+                    if(!ok)return false;
                 }
                 return true;
             },
             three_ankou:()=>{const m=countTiles(this._concealedHand||[]);let n=0;for(let c of m.values())if(c>=3)n++;n+=(this._ankanCount||0);return n>=3;},
-            pure_fully_terminal:(h,g)=>{if(!g)return false;for(let x of g)for(let t of x.tiles){if(t.suit==='z')return false;if(t.num!==1&&t.num!==9)return false;}return true;},
+            // 纯全带幺（北极星 2026-10-02 口径）：整手【无字牌】+ 每个面子含 >=1 个 1/9。
+            //   注意是「每个面子含幺九」而不是「每张牌都是 1/9」—— 故 123s/789m 这类顺子算。
+            //   与混全带幺以「全手是否含字牌」互斥。
+            pure_fully_terminal:(h,g)=>{
+                if(!g||!g.length)return false;
+                for(const x of g)for(const t of x.tiles)if(t.suit==='z')return false;   // 无字牌
+                for(const x of g){
+                    let hasTerm=false;
+                    for(const t of x.tiles){if(t.num===1||t.num===9){hasTerm=true;break;}}
+                    if(!hasTerm)return false;
+                }
+                return true;
+            },
             small_three_dragons:h=>{const d={5:0,6:0,7:0};for(let t of h)if(t.suit==='z'&&d.hasOwnProperty(t.num))d[t.num]++;let pu=0,pa=0;for(let k in d){if(d[k]>=3)pu++;else if(d[k]===2)pa++;}return pu===2&&pa===1;},
             // 大三元：白/发/中三组刻子（役满 28 赋）。命中时不再单独计三元役牌赋，见 checkWin。
             missing_seven:h=>{let hasNum=false;for(let t of h)if(t.suit!=='z'){hasNum=true;break;}if(!hasNum)return false;for(let t of h)if(t.suit!=='z'&&t.num===7)return false;return true;},
