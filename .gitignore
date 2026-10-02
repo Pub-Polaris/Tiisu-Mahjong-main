@@ -9,6 +9,9 @@ state.json
 settings.json
 stats.json
 
+# ── opencode 长期记忆数据库（不入库）──
+.lcm/
+
 # ── 本地临时 ──
 *.tmp
 *.log
