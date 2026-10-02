@@ -526,6 +526,23 @@ function ytDefineCases() {
         const r2 = ytCheck({ hand: ytBuild('z',333,'z',666,'z',777,'z',555,'z',22), winTile:'z2' });
         ytOk('三元不足 4 张 → 不算美人七对', !ytHas(r2, '美人七对（镜中丽人）'), ytNames(r2));
     });
+    ytT('硬编码 · 小于七/大于七：三对三元（5z6z7z 全要）+ 一对风 才成立', () => {
+        // 北极星 2026-10-03 裁定：四对字牌 = 5z/6z/7z 各一对 + 一对风。
+        // 正例：112233m + 55z66z77z11z（三元 3 对 + 1 风）
+        const r1 = ytCheck({ hand: ytBuild('m',112233,'z',55667711), winTile:'m3' });
+        ytOk('含小于七', ytHas(r1, '小于七'), ytBrief(r1));
+        ytEq('小于七 = 14 赋', ytFuOf(r1, '小于七'), 14);
+        // 正例：大于七 778899m + 三对三元 + 一对风
+        const r2 = ytCheck({ hand: ytBuild('m',778899,'z',55667711), winTile:'m9' });
+        ytOk('含大于七', ytHas(r2, '大于七'), ytBrief(r2));
+        ytEq('大于七 = 14 赋', ytFuOf(r2, '大于七'), 14);
+        // 反例：仅 2 对三元（55z66z + 11z22z）→ 不成立
+        const r3 = ytCheck({ hand: ytBuild('m',112233,'z',55661122), winTile:'m3' });
+        ytOk('2 对三元 → 不算小于七', !ytHas(r3, '小于七'), ytNames(r3));
+        // 反例：纯四风（0 三元）→ 不成立
+        const r4 = ytCheck({ hand: ytBuild('m',112233,'z',11223344), winTile:'m3' });
+        ytOk('纯四风 → 不算小于七', !ytHas(r4, '小于七'), ytNames(r4));
+    });
     ytT('互斥前置(notIf) · 四暗刻形时不判 清老头/绿一色/字一色/三国将', () => {
         // 北极星 2026-10-02 裁定：不改 highYaku 顺序，改用互斥前置。
         // ike.json 里这四个役带 "notIf":["four_ankou"]；四暗刻形成立时它们被跳过。
