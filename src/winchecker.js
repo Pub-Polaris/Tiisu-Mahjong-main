@@ -98,9 +98,10 @@ function _xyShape(hand, loNums) {
     const hIds = Object.keys(hc);
     if (hIds.length !== 4) return false;
     for (const id of hIds) if (hc[id] !== 2) return false;
-    // 四对里至少一对来自 5z/6z/7z（三元），至多三对；剩下的是风牌
+    // 四对字牌 = 三元（5z/6z/7z）各恰好一对 + 一对风牌（北极星 2026-10-03 裁定：
+    // 「三种三元牌对子，全部都要」）。故 dragons 必须恰好 3。
     const dragons = hIds.filter(id => ['z5', 'z6', 'z7'].includes(id)).length;
-    if (dragons < 1 || dragons > 3) return false;
+    if (dragons !== 3) return false;
     // 数牌：同一花色 + 指定的三连对各 2 张，其余数牌不得出现
     const ss = [...new Set(suits.map(t => t.suit))];
     if (ss.length !== 1) return false;
@@ -468,7 +469,7 @@ class WinChecker {
 // 形状 = 一个花色的三连对 + 四对字牌 = 6 + 8 = 14 张。
 //   小于七：112233 / 223344 / 334455 / 445566（1-6 区的三连对）
 //   大于七：778899（7-9 区的三连对）
-// 四对字牌 = 5z6z7z 中取一对以上 + 风牌对（合计 4 对，8 张）。
+// 四对字牌 = 5z6z7z 各一对（三元全要）+ 一对风牌（合计 4 对，8 张）。
 less_than_seven:h=>isLessThanSeven(h),
 greater_than_seven:h=>isGreaterThanSeven(h),
 
