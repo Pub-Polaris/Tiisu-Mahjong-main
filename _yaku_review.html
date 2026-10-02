@@ -470,15 +470,15 @@ fetch('ike.json').then(function(r){return r.json();}).then(function(cfg){
       var nums=m[1],su=m[2];
       for(var i=0;i<nums.length;i++){
         var ch=nums[i];
-        out.push({suit:su,num:su==='z'?ch:parseInt(ch,10),id:ch+su});
+        out.push({suit:su,num:su==='z'?ch:parseInt(ch,10),id:su+ch});
       }
     }
     return out;
   }
   function T(id){
     id=(id||'').trim();var m;
-    if((m=/^([1-9])([mpsz])$/.exec(id)))return {suit:m[2],num:m[2]==='z'?m[1]:parseInt(m[1],10),id:m[1]+m[2]};
-    if((m=/^([mpsz])([1-9])$/.exec(id)))return {suit:m[1],num:m[1]==='z'?m[2]:parseInt(m[2],10),id:m[2]+m[1]};
+    if((m=/^([1-9])([mpsz])$/.exec(id)))return {suit:m[2],num:m[2]==='z'?m[1]:parseInt(m[1],10),id:m[2]+m[1]};
+    if((m=/^([mpsz])([1-9])$/.exec(id)))return {suit:m[1],num:m[1]==='z'?m[2]:parseInt(m[2],10),id:m[1]+m[2]};
     return null;
   }
   function parseMelds(str){
@@ -490,13 +490,15 @@ fetch('ike.json').then(function(r){return r.json();}).then(function(cfg){
     });
   }
   function renderTiles(hand,melds){
+    // 引擎 id 是「花色在前」（m1/z5）；牌面文件名是「数字在前」（1m.svg/5z.svg）。
+    function file(t){return t.id.slice(1)+t.id[0];}
     var h='';
     (melds||[]).forEach(function(m){
       h+='<span class="meld"><i>'+m.type+'</i>';
-      m.tiles.forEach(function(t){h+='<img class="t" src="/mj_tiles/'+t.id+'.svg" alt="'+t.id+'" title="'+t.id+'">';});
+      m.tiles.forEach(function(t){var f=file(t);h+='<img class="t" src="/mj_tiles/'+f+'.svg" alt="'+f+'" title="'+f+'">';});
       h+='</span><span class="plus">+</span>';
     });
-    hand.forEach(function(t){h+='<img class="t" src="/mj_tiles/'+t.id+'.svg" alt="'+t.id+'" title="'+t.id+'">';});
+    hand.forEach(function(t){var f=file(t);h+='<img class="t" src="/mj_tiles/'+f+'.svg" alt="'+f+'" title="'+f+'">';});
     document.getElementById('tTiles').innerHTML=h;
   }
   try{
