@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>役种牌型审核</title>
+<style>
+body{background:#12202a;color:#e8f2f1;font-family:'Segoe UI',Roboto,sans-serif;margin:0;padding:18px}
+h1{font-size:22px;margin:0 0 6px}
+.sub{color:#9fc0c4;font-size:13px;margin-bottom:14px}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid #1d4d57;padding:8px 10px;vertical-align:middle;text-align:left}
+th{background:#0e2a31;position:sticky;top:0;color:#e2c65c;font-size:13px}
+td.no{color:#c9a227;font-weight:700;width:44px}
+td.nm{width:150px;font-weight:600}
+td.nm .fu{color:#9fc0c4;font-weight:400;font-size:12px}
+td.pat{width:520px}
+td.exp{width:210px;color:#e2c65c;font-size:13px}
+td.exp .note{color:#8fb3b8;font-size:11px;font-weight:400}
+img.t{width:34px;height:46px;margin:0 1px;vertical-align:middle;background:#f8f4e6;border-radius:3px}
+.meld{margin-right:6px}
+.meld i{color:#8fb3b8;font-style:normal;font-size:11px;margin-right:2px}
+.plus{color:#c9a227;margin:0 4px}
+.not{color:#7fa7ad;font-size:11px;font-family:Consolas,monospace;margin-top:3px}
+td.res{font-size:12px;font-family:Consolas,monospace}
+.ok{color:#46b98a}.bad{color:#e0574f}
+.tester{background:#0e2a31;border:1px solid #1d4d57;border-radius:8px;padding:12px 14px;margin:0 0 16px}
+.trow{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap}
+.trow label{color:#9fc0c4;font-size:13px;min-width:52px}
+.tin{background:#0a1c22;border:1px solid #1d4d57;border-radius:6px;color:#e8f2f1;padding:6px 9px;font-family:Consolas,monospace;font-size:13px;width:360px}
+.tin:focus{border-color:#d0a848;outline:none}
+.tin.sm{width:80px}
+.tin.wide{width:560px}
+.cbl{color:#9fc0c4;font-size:13px;display:flex;align-items:center;gap:4px}
+.btn{background:#d0a848;border:0;border-radius:6px;color:#12202a;font-weight:700;padding:7px 16px;cursor:pointer}
+.btn:hover{background:#e2c65c}
+.hint{color:#7fa7ad;font-size:11px}
+.tout{font-family:Consolas,monospace;font-size:13px;margin-top:8px;color:#e8f2f1;white-space:pre-wrap}
+.tiles{margin-top:8px}
+</style></head><body>
+<h1>役种牌型审核</h1>
+<div class="sub">牌面取自 <code>mj_tiles/*.svg</code>（真实资源）。「代码实测」由 WinChecker 实时跑出；与我写的期望不一致时显示为红色。</div>
+<div class="tester">
+  <div class="trow"><label>暗手</label><input id="inHand" class="tin" placeholder="123s123s789s789s11z" value="123s123s789s789s11z"></div>
+  <div class="trow"><label>和牌张</label><input id="inWin" class="tin sm" placeholder="9s"><label class="cbl"><input type="checkbox" id="inTsumo">自摸</label><span class="hint">和牌张须在暗手内</span></div>
+  <div class="trow"><label>副露</label><input id="inMelds" class="tin wide" placeholder="chi:123m pon:888m ankan:6666p minkan:8888m kakan:55z（空格分隔，可空）"></div>
+  <div class="trow"><button class="btn" id="btnRun">校验</button><span class="hint">标准记号：数字在前花色在后；字牌 1z东 2z南 3z西 4z北 5z白 6z发 7z中</span></div>
+  <div id="tOut" class="tout">…</div>
+  <div id="tTiles" class="tiles"></div>
+</div>
+<table>
+<tr><th>#</th><th>役</th><th>牌型（牌面）</th><th>我的期望</th><th>代码实测</th></tr>
+<tr>
+  <td class="no">1</td>
+  <td class="nm">缺七<div class="fu">1 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><div class="not">m123 m456 m789 p111 s99 和s9</div></td>
+  <td class="exp">缺七<div class="note">手牌不含数牌七</div></td>
+  <td class="res" id="res1">…</td>
+</tr>
+<tr>
+  <td class="no">2</td>
+  <td class="nm">卡七<div class="fu">1 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7p.svg" alt="7p" title="7p"><img class="t" src="/mj_tiles/8p.svg" alt="8p" title="8p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><div class="not">m123 m456 p789 s111 s99 和p8</div></td>
+  <td class="exp">卡七<div class="note">北极星例9（坎张 p7 听 p8）</div></td>
+  <td class="res" id="res2">…</td>
+</tr>
+<tr>
+  <td class="no">3</td>
+  <td class="nm">同色老少<div class="fu">1 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><div class="not">m123 m789 m456 m111 s55 和s5</div></td>
+  <td class="exp">同色老少<div class="note">一对同花色的 123、789</div></td>
+  <td class="res" id="res3">…</td>
+</tr>
+<tr>
+  <td class="no">4</td>
+  <td class="nm">一暗杠（暗根）<div class="fu">2 赋</div></td>
+  <td class="pat"><span class="meld"><i>ankan</i><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"></span><span class="plus">+</span><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><div class="not">[ankan m3333] + s99 z22 m567 s333 和s9</div></td>
+  <td class="exp">一暗杠（暗根）<div class="note">北极星例8：暗手 11 张（听 99s/22z）+ 暗杠 m3333</div></td>
+  <td class="res" id="res4">…</td>
+</tr>
+<tr>
+  <td class="no">5</td>
+  <td class="nm">自摸<div class="fu">2 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><div class="not">m123 m456 m789 p111 s99 和s9</div></td>
+  <td class="exp">自摸<div class="note">自摸和牌</div></td>
+  <td class="res" id="res5">…</td>
+</tr>
+<tr>
+  <td class="no">6</td>
+  <td class="nm">单钓<div class="fu">2 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><div class="not">m123 m456 m789 p111 s99 和s9</div></td>
+  <td class="exp">单钓<div class="note">和牌为幺、字加1赋</div></td>
+  <td class="res" id="res6">…</td>
+</tr>
+<tr>
+  <td class="no">7</td>
+  <td class="nm">全食顺<div class="fu">1 赋</div></td>
+  <td class="pat"><span class="meld"><i>chi</i><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"></span><span class="meld"><i>chi</i><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"></span><span class="meld"><i>chi</i><img class="t" src="/mj_tiles/7p.svg" alt="7p" title="7p"><img class="t" src="/mj_tiles/8p.svg" alt="8p" title="8p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"></span><span class="plus">+</span><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">[chi m123] [chi m456] [chi p789] + m123 z55 和z5</div></td>
+  <td class="exp">全食顺<div class="note">三面子副露全为吃 + 暗手顺子与雀头</div></td>
+  <td class="res" id="res7">…</td>
+</tr>
+<tr>
+  <td class="no">8</td>
+  <td class="nm">全碰刻<div class="fu">2 赋</div></td>
+  <td class="pat"><span class="meld"><i>pon</i><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"></span><span class="meld"><i>pon</i><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"></span><span class="meld"><i>pon</i><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"></span><span class="meld"><i>pon</i><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"></span><span class="plus">+</span><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">[pon m333] [pon p444] [pon s555] [pon z111] + z55 和z5</div></td>
+  <td class="exp">全碰刻<div class="note">四个面子全部副露且全为碰/杠 → 暗手只剩雀头</div></td>
+  <td class="res" id="res8">…</td>
+</tr>
+<tr>
+  <td class="no">9</td>
+  <td class="nm">断幺九<div class="fu">2 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/6p.svg" alt="6p" title="6p"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m234 m234 p456 s678 z55 和s8</div></td>
+  <td class="exp">断幺九<div class="note">不含幺九、字牌</div></td>
+  <td class="res" id="res9">…</td>
+</tr>
+<tr>
+  <td class="no">10</td>
+  <td class="nm">四归一<div class="fu">2 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/6p.svg" alt="6p" title="6p"><img class="t" src="/mj_tiles/7p.svg" alt="7p" title="7p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><div class="not">z1111 m123 p567 s99 z22 和z1</div></td>
+  <td class="exp">四归一<div class="note">北极星例6：m111 里的 4 张同牌，听 99s/22z</div></td>
+  <td class="res" id="res10">…</td>
+</tr>
+<tr>
+  <td class="no">11</td>
+  <td class="nm">混老头<div class="fu">5 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><div class="not">m111 m999 p111 p999 s11 和s1</div></td>
+  <td class="exp">混老头<div class="note">北极星例7：111m 999m 111p 999p + 11z</div></td>
+  <td class="res" id="res11">…</td>
+</tr>
+<tr>
+  <td class="no">12</td>
+  <td class="nm">全数<div class="fu">1 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><div class="not">m123 m456 m789 p111 s99 和s9</div></td>
+  <td class="exp">全数<div class="note">全部是数字牌、没有字牌</div></td>
+  <td class="res" id="res12">…</td>
+</tr>
+<tr>
+  <td class="no">13</td>
+  <td class="nm">对对和<div class="fu">3 赋</div></td>
+  <td class="pat"><span class="meld"><i>pon</i><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"></span><span class="plus">+</span><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">[pon s444] + m111 m222 p333 z55 和m1</div></td>
+  <td class="exp">对对和<div class="note">北极星例5：[pon s444] + 暗手 m111 m222 p333 z55</div></td>
+  <td class="res" id="res13">…</td>
+</tr>
+<tr>
+  <td class="no">14</td>
+  <td class="nm">三色同顺<div class="fu">4 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/2p.svg" alt="2p" title="2p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m123 p123 s123 s456 z55 和s6</div></td>
+  <td class="exp">三色同顺<div class="note">三花色的同一顺子</div></td>
+  <td class="res" id="res14">…</td>
+</tr>
+<tr>
+  <td class="no">15</td>
+  <td class="nm">三色同刻<div class="fu">5 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m111 p111 s222 m234 z55 和s2</div></td>
+  <td class="exp">三色同刻<div class="note">三花色的同数字刻子</div></td>
+  <td class="res" id="res15">…</td>
+</tr>
+<tr>
+  <td class="no">16</td>
+  <td class="nm">二色同顺<div class="fu">3 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/2p.svg" alt="2p" title="2p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m123 p123 s456 s789 z55 和m3</div></td>
+  <td class="exp">二色同顺<div class="note">两花色的同一顺子</div></td>
+  <td class="res" id="res16">…</td>
+</tr>
+<tr>
+  <td class="no">17</td>
+  <td class="nm">二色同刻<div class="fu">4 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m111 p111 s234 s567 z55 和m1</div></td>
+  <td class="exp">二色同刻<div class="note">两花色的同数字刻子</div></td>
+  <td class="res" id="res17">…</td>
+</tr>
+<tr>
+  <td class="no">18</td>
+  <td class="nm">两暗刻<div class="fu">3 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m111 m222 p333 s456 z55 和m1</div></td>
+  <td class="exp">两暗刻<div class="note">含 2 组暗刻</div></td>
+  <td class="res" id="res18">…</td>
+</tr>
+<tr>
+  <td class="no">19</td>
+  <td class="nm">三暗刻<div class="fu">5 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m111 m222 p333 s456 z55 和m1</div></td>
+  <td class="exp">三暗刻<div class="note">含 3 组暗刻</div></td>
+  <td class="res" id="res19">…</td>
+</tr>
+<tr>
+  <td class="no">20</td>
+  <td class="nm">一色三节高<div class="fu">3 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">s111 s222 s333 s456 z55 和s1</div></td>
+  <td class="exp">一色三节高<div class="note">同花色三连刻</div></td>
+  <td class="res" id="res20">…</td>
+</tr>
+<tr>
+  <td class="no">21</td>
+  <td class="nm">一色三步高<div class="fu">4 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/5s.svg" alt="5s" title="5s"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">s123 s234 s345 m678 z55 和s3</div></td>
+  <td class="exp">一色三步高<div class="note">同花色三连顺；不与筋和/坎和混判（第4条）</div></td>
+  <td class="res" id="res21">…</td>
+</tr>
+<tr>
+  <td class="no">22</td>
+  <td class="nm">一通（一条龙）<div class="fu">4 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><div class="not">m123 m456 m789 p111 s99 和m3</div></td>
+  <td class="exp">一通（一条龙）<div class="note">同花色 1-9</div></td>
+  <td class="res" id="res22">…</td>
+</tr>
+<tr>
+  <td class="no">23</td>
+  <td class="nm">双碰<div class="fu">1 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m111 m222 p345 s678 z55 和z5</div></td>
+  <td class="exp">双碰<div class="note">和牌为幺、字加1赋</div></td>
+  <td class="res" id="res23">…</td>
+</tr>
+<tr>
+  <td class="no">24</td>
+  <td class="nm">混一色<div class="fu">5 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m123 m456 m789 m111 z55 和m3</div></td>
+  <td class="exp">混一色<div class="note">一花色+字牌</div></td>
+  <td class="res" id="res24">…</td>
+</tr>
+<tr>
+  <td class="no">25</td>
+  <td class="nm">全带赤<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m123456789 s19 z7 z11 和s9</div></td>
+  <td class="exp">全带赤<div class="note">含全部红牌；万子各1张；特判 14000+其他×700</div></td>
+  <td class="res" id="res25">…</td>
+</tr>
+<tr>
+  <td class="no">26</td>
+  <td class="nm">混全带幺<div class="fu">5 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m111 p111 s999 s123 z55 和m1</div></td>
+  <td class="exp">混全带幺<div class="note">有字牌：字牌雀头</div></td>
+  <td class="res" id="res26">…</td>
+</tr>
+<tr>
+  <td class="no">27</td>
+  <td class="nm">纯全带幺<div class="fu">7 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><div class="not">m111 p111 s999 s123 m99 和m1</div></td>
+  <td class="exp">纯全带幺<div class="note">无字牌：每面子含幺九</div></td>
+  <td class="res" id="res27">…</td>
+</tr>
+<tr>
+  <td class="no">28</td>
+  <td class="nm">小三元<div class="fu">8 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><div class="not">z555 z666 z77 m123 m456 和m3</div></td>
+  <td class="exp">小三元<div class="note">两元刻+一元对</div></td>
+  <td class="res" id="res28">…</td>
+</tr>
+<tr>
+  <td class="no">29</td>
+  <td class="nm">五门齐<div class="fu">5 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/6p.svg" alt="6p" title="6p"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">m123 p456 s789 z111 z55 和m1</div></td>
+  <td class="exp">五门齐<div class="note">饼万索+风+三元齐</div></td>
+  <td class="res" id="res29">…</td>
+</tr>
+<tr>
+  <td class="no">30</td>
+  <td class="nm">七对子<div class="fu">7 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/4p.svg" alt="4p" title="4p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/6p.svg" alt="6p" title="6p"><img class="t" src="/mj_tiles/6p.svg" alt="6p" title="6p"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><div class="not">m112233 p445566 z77 和z7</div></td>
+  <td class="exp">七对子<div class="note">七对形</div></td>
+  <td class="res" id="res30">…</td>
+</tr>
+<tr>
+  <td class="no">31</td>
+  <td class="nm">纯全带幺(反例)<div class="fu">7 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><div class="not">m123 m789 p111 p999 m55 和m3</div></td>
+  <td class="exp">（不计）<div class="note">对子 55m 不含幺九 → 两役都不计</div></td>
+  <td class="res" id="res31">…</td>
+</tr>
+<tr>
+  <td class="no">32</td>
+  <td class="nm">清一色<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><div class="not">m123 m456 m789 m111 m99 和m3</div></td>
+  <td class="exp">清一色<div class="note">全一花色</div></td>
+  <td class="res" id="res32">…</td>
+</tr>
+<tr>
+  <td class="no">33</td>
+  <td class="nm">四暗刻<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/3p.svg" alt="3p" title="3p"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m111 m222 p333 s444 z11 和m1</div></td>
+  <td class="exp">四暗刻<div class="note">四暗刻+单钓</div></td>
+  <td class="res" id="res33">…</td>
+</tr>
+<tr>
+  <td class="no">34</td>
+  <td class="nm">字一色<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><div class="not">z111 z222 z555 z666 z77 和z3</div></td>
+  <td class="exp">四暗刻<div class="note">全字牌必为四暗刻 → 字一色被截（E4 互斥）</div></td>
+  <td class="res" id="res34">…</td>
+</tr>
+<tr>
+  <td class="no">35</td>
+  <td class="nm">清老头<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><div class="not">m111 m999 p111 p999 s11 和m1</div></td>
+  <td class="exp">四暗刻<div class="note">全幺九刻子 → 四暗刻被截（E4 互斥）</div></td>
+  <td class="res" id="res35">…</td>
+</tr>
+<tr>
+  <td class="no">36</td>
+  <td class="nm">绿一色<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/4s.svg" alt="4s" title="4s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/6s.svg" alt="6s" title="6s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><div class="not">s222 s333 s444 s666 s88 和s8</div></td>
+  <td class="exp">四暗刻<div class="note">全绿刻子 → 四暗刻被截（E4 互斥）</div></td>
+  <td class="res" id="res36">…</td>
+</tr>
+<tr>
+  <td class="no">37</td>
+  <td class="nm">三国将<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/8s.svg" alt="8s" title="8s"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/9z.svg" alt="9z" title="9z"><img class="t" src="/mj_tiles/9z.svg" alt="9z" title="9z"><div class="not">m222 p555 s888 m234 z99 和m4</div></td>
+  <td class="exp">三国将<div class="note">非四暗刻形 → 互斥不触发，三国将可达</div></td>
+  <td class="res" id="res37">…</td>
+</tr>
+<tr>
+  <td class="no">38</td>
+  <td class="nm">大三元<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><div class="not">z555 z666 z777 m123 m99 和m3</div></td>
+  <td class="exp">大三元<div class="note">三元三刻</div></td>
+  <td class="res" id="res38">…</td>
+</tr>
+<tr>
+  <td class="no">39</td>
+  <td class="nm">四喜和<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><div class="not">z111 z222 z333 z444 z55 和z5</div></td>
+  <td class="exp">四喜和<div class="note">四风三刻+风对</div></td>
+  <td class="res" id="res39">…</td>
+</tr>
+<tr>
+  <td class="no">40</td>
+  <td class="nm">国士无双<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/9p.svg" alt="9p" title="9p"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/9s.svg" alt="9s" title="9s"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><div class="not">m19 p19 s19 z1234567 m1 和m1</div></td>
+  <td class="exp">国士无双<div class="note">十三种幺九字牌</div></td>
+  <td class="res" id="res40">…</td>
+</tr>
+<tr>
+  <td class="no">41</td>
+  <td class="nm">九莲宝灯<div class="fu">28 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><div class="not">m1112345678999 m5 和m5</div></td>
+  <td class="exp">九莲宝灯<div class="note">1-9 各至少一张，1/9 各3</div></td>
+  <td class="res" id="res41">…</td>
+</tr>
+<tr>
+  <td class="no">42</td>
+  <td class="nm">南北通<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><div class="not">m123 m456 m789 z222 z44 和z4</div></td>
+  <td class="exp">南北通<div class="note">一条龙+南刻+北对</div></td>
+  <td class="res" id="res42">…</td>
+</tr>
+<tr>
+  <td class="no">43</td>
+  <td class="nm">大于七<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/8m.svg" alt="8m" title="8m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/9m.svg" alt="9m" title="9m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m778899 z55 z66 z77 z11 和z1</div></td>
+  <td class="exp">？（待定）<div class="note">北极星 2.1：778899（一个花色）+ 四对字牌</div></td>
+  <td class="res" id="res43">…</td>
+</tr>
+<tr>
+  <td class="no">44</td>
+  <td class="nm">小于七<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m112233 z55 z66 z77 z11 和z1</div></td>
+  <td class="exp">？（待定）<div class="note">北极星 2.2：112233（一个花色）+ 四对字牌</div></td>
+  <td class="res" id="res44">…</td>
+</tr>
+<tr>
+  <td class="no">45</td>
+  <td class="nm">小于七(223344)<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m223344 z55 z66 z77 z11 和z1</div></td>
+  <td class="exp">？（待定）<div class="note">北极星 2.3：223344 + 四对字牌</div></td>
+  <td class="res" id="res45">…</td>
+</tr>
+<tr>
+  <td class="no">46</td>
+  <td class="nm">小于七(334455)<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m334455 z55 z66 z77 z11 和z1</div></td>
+  <td class="exp">？（待定）<div class="note">北极星 2.4：334455 + 四对字牌</div></td>
+  <td class="res" id="res46">…</td>
+</tr>
+<tr>
+  <td class="no">47</td>
+  <td class="nm">小于七(445566)<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/4m.svg" alt="4m" title="4m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/5m.svg" alt="5m" title="5m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/6m.svg" alt="6m" title="6m"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><div class="not">m445566 z55 z66 z77 z11 和z1</div></td>
+  <td class="exp">？（待定）<div class="note">北极星 2.5：445566 + 四对字牌</div></td>
+  <td class="res" id="res47">…</td>
+</tr>
+<tr>
+  <td class="no">48</td>
+  <td class="nm">镜中花<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><img class="t" src="/mj_tiles/5p.svg" alt="5p" title="5p"><div class="not">s112233 m112233 p55 和p5</div></td>
+  <td class="exp">镜中花<div class="note">两花色各1组112233+5p对，单钓5p</div></td>
+  <td class="res" id="res48">…</td>
+</tr>
+<tr>
+  <td class="no">49</td>
+  <td class="nm">水中月<div class="fu">14 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/2m.svg" alt="2m" title="2m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/3m.svg" alt="3m" title="3m"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><div class="not">s112233 m112233 p11 和p1</div></td>
+  <td class="exp">水中月<div class="note">两花色各1组112233+1p对，单钓1p</div></td>
+  <td class="res" id="res49">…</td>
+</tr>
+<tr>
+  <td class="no">50</td>
+  <td class="nm">纯正水中月<div class="fu">70 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/1s.svg" alt="1s" title="1s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/2s.svg" alt="2s" title="2s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><div class="not">s112233 s112233 p11 和p1</div></td>
+  <td class="exp">纯正水中月<div class="note">单花色 2组112233+1p对</div></td>
+  <td class="res" id="res50">…</td>
+</tr>
+<tr>
+  <td class="no">51</td>
+  <td class="nm">美人七对<div class="fu">70 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><img class="t" src="/mj_tiles/1p.svg" alt="1p" title="1p"><div class="not">z5555 z6666 z7777 p11 和p1</div></td>
+  <td class="exp">美人七对（镜中丽人）<div class="note">三元各4张+1p对</div></td>
+  <td class="res" id="res51">…</td>
+</tr>
+<tr>
+  <td class="no">52</td>
+  <td class="nm">三七之花<div class="fu">70 赋</div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/7m.svg" alt="7m" title="7m"><img class="t" src="/mj_tiles/7p.svg" alt="7p" title="7p"><img class="t" src="/mj_tiles/7p.svg" alt="7p" title="7p"><img class="t" src="/mj_tiles/7p.svg" alt="7p" title="7p"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/7s.svg" alt="7s" title="7s"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><div class="not">m777 p777 s777 z111 z22 和z2</div></td>
+  <td class="exp">三七之花<div class="note">三花色7刻+三元/四风/1-9</div></td>
+  <td class="res" id="res52">…</td>
+</tr>
+<tr>
+  <td class="no">53</td>
+  <td class="nm">四明杠<div class="fu">70 赋</div></td>
+  <td class="pat"><span class="meld"><i>minkan</i><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"><img class="t" src="/mj_tiles/1m.svg" alt="1m" title="1m"></span><span class="meld"><i>minkan</i><img class="t" src="/mj_tiles/2p.svg" alt="2p" title="2p"><img class="t" src="/mj_tiles/2p.svg" alt="2p" title="2p"><img class="t" src="/mj_tiles/2p.svg" alt="2p" title="2p"><img class="t" src="/mj_tiles/2p.svg" alt="2p" title="2p"></span><span class="meld"><i>minkan</i><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"><img class="t" src="/mj_tiles/3s.svg" alt="3s" title="3s"></span><span class="meld"><i>minkan</i><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"></span><span class="plus">+</span><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><div class="not">[minkan m1111] [minkan p2222] [minkan s3333] [minkan z5555] + z66 和z6</div></td>
+  <td class="exp">四明杠<div class="note">第1条：四个明杠都是面子 → 暗手只剩雀头</div></td>
+  <td class="res" id="res53">…</td>
+</tr>
+<tr>
+  <td class="no">54</td>
+  <td class="nm">大七星<div class="fu"></div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><div class="not">z11223344556677 和z1</div></td>
+  <td class="exp">（不计分）<div class="note">字牌七对 → sevenHonors，结束整场</div></td>
+  <td class="res" id="res54">…</td>
+</tr>
+<tr>
+  <td class="no">55</td>
+  <td class="nm">字一色(七对形)<div class="fu"></div></td>
+  <td class="pat"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/1z.svg" alt="1z" title="1z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/2z.svg" alt="2z" title="2z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/3z.svg" alt="3z" title="3z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/4z.svg" alt="4z" title="4z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/5z.svg" alt="5z" title="5z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/6z.svg" alt="6z" title="6z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><img class="t" src="/mj_tiles/7z.svg" alt="7z" title="7z"><div class="not">z11223344556677 和z1</div></td>
+  <td class="exp">（不计分）<div class="note">同上，确认 sevenHonors 生效</div></td>
+  <td class="res" id="res55">…</td>
+</tr>
+</table>
+<script src="src/tiles.js"></script><script src="src/notation.js"></script>
+<script src="src/tenpai.js"></script><script src="src/winchecker.js"></script>
+<script>
+var CASES = [{"no": 1, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "p1", "p1", "p1", "s9", "s9"], "win": "s9", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 2, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "p7", "p8", "p9", "s1", "s1", "s1", "s9", "s9"], "win": "p8", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 3, "hand": ["m1", "m2", "m3", "m7", "m8", "m9", "m4", "m5", "m6", "m1", "m1", "m1", "s5", "s5"], "win": "s5", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 4, "hand": ["s9", "s9", "z2", "z2", "m5", "m6", "m7", "s3", "s3", "s3"], "win": "s9", "melds": [["ankan", ["m3", "m3", "m3", "m3"]]], "ctx": {}, "selfDraw": false}, {"no": 5, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "p1", "p1", "p1", "s9", "s9"], "win": "s9", "melds": [], "ctx": {}, "selfDraw": true}, {"no": 6, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "p1", "p1", "p1", "s9", "s9"], "win": "s9", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 7, "hand": ["m1", "m2", "m3", "z5", "z5"], "win": "z5", "melds": [["chi", ["m1", "m2", "m3"]], ["chi", ["m4", "m5", "m6"]], ["chi", ["p7", "p8", "p9"]]], "ctx": {}, "selfDraw": false}, {"no": 8, "hand": ["z5", "z5"], "win": "z5", "melds": [["pon", ["m3", "m3", "m3"]], ["pon", ["p4", "p4", "p4"]], ["pon", ["s5", "s5", "s5"]], ["pon", ["z1", "z1", "z1"]]], "ctx": {}, "selfDraw": false}, {"no": 9, "hand": ["m2", "m3", "m4", "m2", "m3", "m4", "p4", "p5", "p6", "s6", "s7", "s8", "z5", "z5"], "win": "s8", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 10, "hand": ["z1", "z1", "z1", "z1", "m1", "m2", "m3", "p5", "p6", "p7", "s9", "s9", "z2", "z2"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 11, "hand": ["m1", "m1", "m1", "m9", "m9", "m9", "p1", "p1", "p1", "p9", "p9", "p9", "s1", "s1"], "win": "s1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 12, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "p1", "p1", "p1", "s9", "s9"], "win": "s9", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 13, "hand": ["m1", "m1", "m1", "m2", "m2", "m2", "p3", "p3", "p3", "z5", "z5"], "win": "m1", "melds": [["pon", ["s4", "s4", "s4"]]], "ctx": {}, "selfDraw": false}, {"no": 14, "hand": ["m1", "m2", "m3", "p1", "p2", "p3", "s1", "s2", "s3", "s4", "s5", "s6", "z5", "z5"], "win": "s6", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 15, "hand": ["m1", "m1", "m1", "p1", "p1", "p1", "s2", "s2", "s2", "m2", "m3", "m4", "z5", "z5"], "win": "s2", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 16, "hand": ["m1", "m2", "m3", "p1", "p2", "p3", "s4", "s5", "s6", "s7", "s8", "s9", "z5", "z5"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 17, "hand": ["m1", "m1", "m1", "p1", "p1", "p1", "s2", "s3", "s4", "s5", "s6", "s7", "z5", "z5"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 18, "hand": ["m1", "m1", "m1", "m2", "m2", "m2", "p3", "p3", "p3", "s4", "s5", "s6", "z5", "z5"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 19, "hand": ["m1", "m1", "m1", "m2", "m2", "m2", "p3", "p3", "p3", "s4", "s5", "s6", "z5", "z5"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 20, "hand": ["s1", "s1", "s1", "s2", "s2", "s2", "s3", "s3", "s3", "s4", "s5", "s6", "z5", "z5"], "win": "s1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 21, "hand": ["s1", "s2", "s3", "s2", "s3", "s4", "s3", "s4", "s5", "m6", "m7", "m8", "z5", "z5"], "win": "s3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 22, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "p1", "p1", "p1", "s9", "s9"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 23, "hand": ["m1", "m1", "m1", "m2", "m2", "m2", "p3", "p4", "p5", "s6", "s7", "s8", "z5", "z5"], "win": "z5", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 24, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m1", "m1", "m1", "z5", "z5"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 25, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "s1", "s9", "z7", "z1", "z1"], "win": "s9", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 26, "hand": ["m1", "m1", "m1", "p1", "p1", "p1", "s9", "s9", "s9", "s1", "s2", "s3", "z5", "z5"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 27, "hand": ["m1", "m1", "m1", "p1", "p1", "p1", "s9", "s9", "s9", "s1", "s2", "s3", "m9", "m9"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 28, "hand": ["z5", "z5", "z5", "z6", "z6", "z6", "z7", "z7", "m1", "m2", "m3", "m4", "m5", "m6"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 29, "hand": ["m1", "m2", "m3", "p4", "p5", "p6", "s7", "s8", "s9", "z1", "z1", "z1", "z5", "z5"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 30, "hand": ["m1", "m1", "m2", "m2", "m3", "m3", "p4", "p4", "p5", "p5", "p6", "p6", "z7", "z7"], "win": "z7", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 31, "hand": ["m1", "m2", "m3", "m7", "m8", "m9", "p1", "p1", "p1", "p9", "p9", "p9", "m5", "m5"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 32, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m1", "m1", "m1", "m9", "m9"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 33, "hand": ["m1", "m1", "m1", "m2", "m2", "m2", "p3", "p3", "p3", "s4", "s4", "s4", "z1", "z1"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 34, "hand": ["z1", "z1", "z1", "z2", "z2", "z2", "z5", "z5", "z5", "z6", "z6", "z6", "z7", "z7"], "win": "z3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 35, "hand": ["m1", "m1", "m1", "m9", "m9", "m9", "p1", "p1", "p1", "p9", "p9", "p9", "s1", "s1"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 36, "hand": ["s2", "s2", "s2", "s3", "s3", "s3", "s4", "s4", "s4", "s6", "s6", "s6", "s8", "s8"], "win": "s8", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 37, "hand": ["m2", "m2", "m2", "p5", "p5", "p5", "s8", "s8", "s8", "m2", "m3", "m4", "z9", "z9"], "win": "m4", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 38, "hand": ["z5", "z5", "z5", "z6", "z6", "z6", "z7", "z7", "z7", "m1", "m2", "m3", "m9", "m9"], "win": "m3", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 39, "hand": ["z1", "z1", "z1", "z2", "z2", "z2", "z3", "z3", "z3", "z4", "z4", "z4", "z5", "z5"], "win": "z5", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 40, "hand": ["m1", "m9", "p1", "p9", "s1", "s9", "z1", "z2", "z3", "z4", "z5", "z6", "z7", "m1"], "win": "m1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 41, "hand": ["m1", "m1", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "m9", "m9", "m5"], "win": "m5", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 42, "hand": ["m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m9", "z2", "z2", "z2", "z4", "z4"], "win": "z4", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 43, "hand": ["m7", "m7", "m8", "m8", "m9", "m9", "z5", "z5", "z6", "z6", "z7", "z7", "z1", "z1"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 44, "hand": ["m1", "m1", "m2", "m2", "m3", "m3", "z5", "z5", "z6", "z6", "z7", "z7", "z1", "z1"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 45, "hand": ["m2", "m2", "m3", "m3", "m4", "m4", "z5", "z5", "z6", "z6", "z7", "z7", "z1", "z1"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 46, "hand": ["m3", "m3", "m4", "m4", "m5", "m5", "z5", "z5", "z6", "z6", "z7", "z7", "z1", "z1"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 47, "hand": ["m4", "m4", "m5", "m5", "m6", "m6", "z5", "z5", "z6", "z6", "z7", "z7", "z1", "z1"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 48, "hand": ["s1", "s1", "s2", "s2", "s3", "s3", "m1", "m1", "m2", "m2", "m3", "m3", "p5", "p5"], "win": "p5", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 49, "hand": ["s1", "s1", "s2", "s2", "s3", "s3", "m1", "m1", "m2", "m2", "m3", "m3", "p1", "p1"], "win": "p1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 50, "hand": ["s1", "s1", "s2", "s2", "s3", "s3", "s1", "s1", "s2", "s2", "s3", "s3", "p1", "p1"], "win": "p1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 51, "hand": ["z5", "z5", "z5", "z5", "z6", "z6", "z6", "z6", "z7", "z7", "z7", "z7", "p1", "p1"], "win": "p1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 52, "hand": ["m7", "m7", "m7", "p7", "p7", "p7", "s7", "s7", "s7", "z1", "z1", "z1", "z2", "z2"], "win": "z2", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 53, "hand": ["z6", "z6"], "win": "z6", "melds": [["minkan", ["m1", "m1", "m1", "m1"]], ["minkan", ["p2", "p2", "p2", "p2"]], ["minkan", ["s3", "s3", "s3", "s3"]], ["minkan", ["z5", "z5", "z5", "z5"]]], "ctx": {}, "selfDraw": false}, {"no": 54, "hand": ["z1", "z1", "z2", "z2", "z3", "z3", "z4", "z4", "z5", "z5", "z6", "z6", "z7", "z7"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}, {"no": 55, "hand": ["z1", "z1", "z2", "z2", "z3", "z3", "z4", "z4", "z5", "z5", "z6", "z6", "z7", "z7"], "win": "z1", "melds": [], "ctx": {}, "selfDraw": false}];
+function T(id){var s=id[0],r=id.slice(1);return s==='z'?{suit:'z',num:r,id:id}:{suit:s,num:parseInt(r,10),id:id};}
+function H(ids){return (ids||[]).map(T);}
+fetch('ike.json').then(function(r){return r.json();}).then(function(cfg){
+  var chk=new WinChecker(null,cfg); window.__chk=chk;
+  CASES.forEach(function(c){
+    var el=document.getElementById('res'+c.no);
+    try{
+      var h=H(c.hand), w=c.win?T(c.win):null;
+      var melds=(c.melds||[]).map(function(m){return {type:m[0],tiles:H(m[1])};});
+      var ankan=melds.filter(function(m){return m.type==='ankan';}).length;
+      var minkan=melds.filter(function(m){return m.type==='minkan'||m.type==='kakan';}).length;
+      var res=chk.checkWin(h,!!c.selfDraw,melds.length>0,ankan,minkan,melds,[],false,[],w,
+        Object.assign({seaMoon:false,haiDei:false,riverFish:false,lastTileVisible:0,seatWind:'east',roundWind:'east'},c.ctx||{}));
+      var names=(res.activeYaku||[]).map(function(y){return y.name+':'+y.fu;}).join(' + ');
+      var sp=(res.specialPoints===undefined||res.specialPoints===null)?'':(' 特殊='+res.specialPoints);
+      var ex=c.expect||'';
+      var bad=(ex.indexOf('待定')<0&&ex.indexOf('不计')<0&&ex.indexOf('（')<0&&names.indexOf(ex)<0);
+      el.className=bad?'bad':'ok';
+      el.textContent=(res.success?('fu='+res.totalFu+' '):('失败:'+(res.reason||'')))+names+sp+
+        (res.sevenHonors?' [sevenHonors!]':'');
+    }catch(e){ el.className='bad'; el.textContent='EXC '+e.message; }
+  });
+  if(window.__runTester) try{window.__runTester();}catch(_e){}
+}).catch(function(e){document.body.insertAdjacentHTML('afterbegin','<p class=bad>加载 ike.json 失败: '+e.message+'</p>');});
+</script>
+<script>
+(function(){
+  function parseTiles(str){
+    str=(str||'').replace(/\s+/g,'');
+    var out=[],re=/(\d+)([mpsz])/g,m;
+    while((m=re.exec(str))){
+      var nums=m[1],su=m[2];
+      for(var i=0;i<nums.length;i++){
+        var ch=nums[i];
+        out.push({suit:su,num:su==='z'?ch:parseInt(ch,10),id:ch+su});
+      }
+    }
+    return out;
+  }
+  function T(id){
+    id=(id||'').trim();var m;
+    if((m=/^([1-9])([mpsz])$/.exec(id)))return {suit:m[2],num:m[2]==='z'?m[1]:parseInt(m[1],10),id:m[1]+m[2]};
+    if((m=/^([mpsz])([1-9])$/.exec(id)))return {suit:m[1],num:m[1]==='z'?m[2]:parseInt(m[2],10),id:m[2]+m[1]};
+    return null;
+  }
+  function parseMelds(str){
+    str=(str||'').trim();if(!str)return [];
+    return str.split(/\s+/).map(function(tok){
+      var m=/^(chi|pon|ankan|minkan|kakan):?(.+)$/.exec(tok);
+      if(!m)throw new Error('副露格式错：'+tok+'（应为 chi:123m / pon:888m / ankan:6666p / minkan:8888m / kakan:55z）');
+      return {type:m[1],tiles:parseTiles(m[2])};
+    });
+  }
+  function renderTiles(hand,melds){
+    var h='';
+    (melds||[]).forEach(function(m){
+      h+='<span class="meld"><i>'+m.type+'</i>';
+      m.tiles.forEach(function(t){h+='<img class="t" src="/mj_tiles/'+t.id+'.svg" alt="'+t.id+'" title="'+t.id+'">';});
+      h+='</span><span class="plus">+</span>';
+    });
+    hand.forEach(function(t){h+='<img class="t" src="/mj_tiles/'+t.id+'.svg" alt="'+t.id+'" title="'+t.id+'">';});
+    document.getElementById('tTiles').innerHTML=h;
+  }
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.has('hand'))document.getElementById('inHand').value=q.get('hand');
+    if(q.has('win'))document.getElementById('inWin').value=q.get('win');
+    if(q.has('melds'))document.getElementById('inMelds').value=q.get('melds');
+    if(q.get('tsumo')==='1')document.getElementById('inTsumo').checked=true;
+  }catch(_e){}
+  window.__runTester=function(){
+    var out=document.getElementById('tOut');
+    try{
+      if(!window.__chk){out.className='tout bad';out.textContent='ike.json 尚未加载完，请稍候再点校验';return;}
+      var handStr=document.getElementById('inHand').value;
+      var hand=parseTiles(handStr);
+      if(!hand.length)throw new Error('暗手为空或格式错：'+handStr);
+      var winStr=document.getElementById('inWin').value.trim();
+      var win=winStr?T(winStr):null;
+      if(winStr&&!win)throw new Error('和牌张格式错：'+winStr);
+      var tsumo=document.getElementById('inTsumo').checked;
+      var melds=parseMelds(document.getElementById('inMelds').value);
+      var ankan=melds.filter(function(m){return m.type==='ankan';}).length;
+      var minkan=melds.filter(function(m){return m.type==='minkan'||m.type==='kakan';}).length;
+      renderTiles(hand,melds);
+      var res=window.__chk.checkWin(hand,tsumo,melds.length>0,ankan,minkan,melds,[],false,[],win,
+        {seaMoon:false,haiDei:false,riverFish:false,lastTileVisible:0,seatWind:'east',roundWind:'east'});
+      var names=(res.activeYaku||[]).map(function(y){return y.name+':'+y.fu;}).join(' + ');
+      var sp=(res.specialPoints===undefined||res.specialPoints===null)?'':(' 特殊='+res.specialPoints);
+      out.className='tout '+(res.success?'ok':'bad');
+      out.textContent=(res.success?('fu='+res.totalFu+' '):('失败:'+(res.reason||'')+' '))+names+sp+
+        (res.sevenHonors?' [sevenHonors!]':'');
+    }catch(e){out.className='tout bad';out.textContent='EXC '+e.message;}
+  };
+  document.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('btnRun').addEventListener('click',window.__runTester);
+    ['inHand','inWin','inMelds'].forEach(function(id){
+      document.getElementById(id).addEventListener('keydown',function(e){if(e.key==='Enter')window.__runTester();});
+    });
+  });
+})();
+</script></body></html>
