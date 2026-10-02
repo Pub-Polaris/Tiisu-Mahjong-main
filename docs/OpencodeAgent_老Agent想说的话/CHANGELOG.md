@@ -35,8 +35,65 @@
 | 261002-01 | 2026-10-02 | **任务执行铁律**（AGENTS.md 新增第零章） | 先完整后测试 / 分区块串行 / 开工前先问优先度；回填基线与页脚版本至 `261002` |
 | 261002-02 | 2026-10-02 | 工具坑 6.11 + 验收证据要求 + 链条引用校准 | 新增「Python 读写模式把行尾翻倍」一条；`AGENTS.md` 加 5.2.1（验收必须附命令+原始输出）；修链条里的失效 hash 与时间戳 |
 | 261002-03 | 2026-10-02 | 更正 `opencode` 的能力陈述（无 git，但有命令执行能力） | 区分「无 git」与「无工具」；5.2.1 加「无工具方豁免」；链条标题与协作表同步 |
+| 261002-04 | 2026-10-02 | 目录/交接同步 + **新增实验界面 `new.html`**（现代极简皮肤 + 游戏内切换） | `项目交接`+`规则缺口清单` 过时陈述对齐；`index.html` 拆出 `css/game.css`/`js/game.js`；新增 `css/theme-modern.css` 与 `new.html`；运行时工具条加「界面」切换（不跳转、不丢对局）；门户加界面选择 |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-04 — 新增实验界面 new.html（现代极简皮肤 + 游戏内切换）（2026-10-02）
+
+**主题**：北极星要求"拿一份美术"并做一个 `new.html`，按按键可进新版验证。方向定为
+**现代极简：深青底 + 金线 + 大圆角**；定位为**平行实验版**（可改 DOM/JS）；入口为**游戏内切换开关**。
+
+### 一、结构重构（为让两版共用逻辑）
+
+原 `index.html` 是"单页内联一切"（45KB：内联 `<style>` 8.2KB + 内联装配层 30KB）。
+若直接复制成 `new.html`，会立刻产生两份 30KB 的重复装配层，**引擎一改就两边失步**。
+故先做等价重构，再叠皮肤：
+
+| 新文件 | 来源 | 说明 |
+|---|---|---|
+| `css/game.css` | 原 `index.html` 的 `<style>` 内容 | 经典皮肤，**内容一字未改** |
+| `js/game.js` | 原 `index.html` 的内联装配层 | 逻辑一字未改，末尾追加 UI 版本切换模块 |
+| `index.html` | 重新拼装 | 改为外链 `css`/`js`，DOM 一字未改 |
+
+重构过程用"拆开再拼回、断言与原文件**逐字节相同**"来保证等价，不是靠肉眼比对。
+
+### 二、新增界面
+
+- `css/theme-modern.css`：现代极简皮肤。与 `game.css` **同时 <link>**，靠 `disabled` 切换，
+  故切换**不跳转页面、不丢对局状态**。仅覆盖视觉（色/圆角/阴影/描边），**不改任何 `display`** ——
+  页面显隐由内联 `style.display`（`''` = 显示）控制，设了会与逻辑打架。
+- `new.html`：与 `index.html` **同一份 DOM 与同一份 `js/game.js`**，只把默认皮肤改为 `modern`。
+- 运行时工具条新增「界面」下拉：`经典` / `现代（实验）`；选择记入 `localStorage`（键 `oc_ui_version`）。
+- `portal.html` 设置区新增「界面」选择，`openGame()` 会带 `?ui=` 打开对应皮肤。
+- URL 参数 `?ui=classic|modern` 可强制覆盖（便于对比与自动化）。
+
+### 三、验收（5.2.1：命令 + 原始输出）
+
+命令一：`python P:\Playground\scripts\run_all.py --runs 2`
+
+    YAKUTEST:  PASS 133/133 断言 · 51 用例
+    ENGINETEST: PASS 73/73 断言 · 18 用例
+    [PASS] stats.json + state.json 逐字节不变
+    [PASS] auto games clean
+    ALL CHECKS PASSED
+
+命令二：`python check_skin.py`（无头 Edge 逐页核对皮肤接线）
+
+    new.html            default=modern   want=modern   got=modern   tiles=True switcher=True jserr=0 OK
+    new.html?ui=classic default=modern   want=classic  got=classic  tiles=True switcher=True jserr=0 OK
+    index.html          default=classic  want=classic  got=classic  tiles=True switcher=True jserr=0 OK
+    index.html?ui=modern default=classic want=modern   got=modern   tiles=True switcher=True jserr=0 OK
+    RESULT: PASS
+
+自动对局在 `new.html` 下同样跑到「对局结束」（含终局判定），无 JS 报错。
+
+### 四、留给下方
+
+- 现代皮肤为**第一版**，只做了视觉层；牌背/骰子仍是 CSS 色块与 emoji（美术可后续替换，见 `design_design_guide.md`）。
+- `design_design_guide.md` 的色值表仍描述经典皮肤；若要长期维护两套皮肤，需补"变量化"一节。
+
 ---
 
 ## 261002-03 — 更正 `opencode` 能力陈述（2026-10-02）
