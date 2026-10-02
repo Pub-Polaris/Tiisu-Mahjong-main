@@ -85,6 +85,43 @@ function splitGroups(tiles) {
 
 // ── WinChecker ──
 
+// ── 小于七 / 大于七 硬编码判定（北极星 2026-10-02）────────────────────
+// 形状 = 一个花色的三连对（6 张）+ 四对字牌（8 张）= 14 张。
+function _xyShape(hand, loNums) {
+    if (!hand || hand.length !== 14) return false;
+    const honors = hand.filter(t => t.suit === 'z');
+    const suits  = hand.filter(t => t.suit !== 'z');
+    if (honors.length !== 8 || suits.length !== 6) return false;
+    // 四对字牌：每种恰好 2 张，且共 4 种
+    const hc = {};
+    for (const t of honors) hc[t.id] = (hc[t.id] || 0) + 1;
+    const hIds = Object.keys(hc);
+    if (hIds.length !== 4) return false;
+    for (const id of hIds) if (hc[id] !== 2) return false;
+    // 四对里至少一对来自 5z/6z/7z（三元），至多三对；剩下的是风牌
+    const dragons = hIds.filter(id => ['z5', 'z6', 'z7'].includes(id)).length;
+    if (dragons < 1 || dragons > 3) return false;
+    // 数牌：同一花色 + 指定的三连对各 2 张，其余数牌不得出现
+    const ss = [...new Set(suits.map(t => t.suit))];
+    if (ss.length !== 1) return false;
+    const sc = {};
+    for (const t of suits) sc[t.num] = (sc[t.num] || 0) + 1;
+    for (const n of loNums) if (sc[n] !== 2) return false;
+    for (const k of Object.keys(sc)) if (!loNums.includes(Number(k))) return false;
+    return true;
+}
+function isLessThanSeven(hand) {
+    // 1-6 区间的三连对：112233 / 223344 / 334455 / 445566
+    for (const a of [1, 2, 3, 4]) {
+        if (_xyShape(hand, [a, a + 1, a + 2])) return true;
+    }
+    return false;
+}
+function isGreaterThanSeven(hand) {
+    // 7-9 区间的三连对：778899
+    return _xyShape(hand, [7, 8, 9]);
+}
+
 class WinChecker {
     constructor(config, yakuData) {
         this.config = config;
@@ -175,6 +212,28 @@ class WinChecker {
             baseFu=0;
         }
         if (!handType) return {success:false,reason:'not_formed',msg:'不成形'};
+
+        // 硬编码前置（北极星 2026-10-02）：小于七 / 大于七 的形状本质是七对形，
+        // 若不在此处先判，会被下面的 seven_pairs 分支截走（高役循环根本跑不到）。
+        for (const _hid of ['less_than_seven', 'greater_than_seven']) {
+            const _hy = (this.yakuData.highYaku || []).find(x => x.id === _hid);
+            if (!_hy) continue;
+            const _fn = this.conditionFn(_hid);
+            let _ok = false;
+            try { _ok = _fn && _fn(fullHand, groups) === true; } catch (e) { _ok = false; }
+            if (!_ok) continue;
+            const _tk = this._tokureiBonus(_hy, fullHand, groups);
+            const _yaku = [{ name: _hy.name, fu: _hy.fu, isHigh: true, id: _hy.id }];
+            let _fu = _hy.fu;
+            if (this.isHalfFlush(fullHand)) {
+                const _hf = this.getYakuFu('half_flush');
+                _fu += _hf;
+                _yaku.push({ name: '混一色', fu: _hf });
+            }
+            if (_tk > 0) _yaku.push({ name: '特例加计', fu: 0, isBonus: true, pointsBonus: _tk });
+            return { success: true, totalFu: _fu, activeYaku: _yaku, handType: 'highyaku',
+                     sevenHonors: false, specialPoints: this._highPoints(_hy), tokureiBonus: _tk };
+        }
 
         // 大七星（tiisuin，字牌七对子）：检测；**本身不计分**，触发时由 engine 直接结束本局。
         const sevenHonors = handType === 'seven_pairs' && isSevenHonors(fullHand);
@@ -405,8 +464,14 @@ class WinChecker {
             two_color_double_old_young:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');const s123=new Set(),s789=new Set();for(let x of s){const su=x.tiles[0].suit;const ns=x.tiles.map(t=>t.num).sort((a,b)=>a-b);if(ns[0]===1&&ns[1]===2&&ns[2]===3)s123.add(su);if(ns[0]===7&&ns[1]===8&&ns[2]===9)s789.add(su);}return s123.size>=2&&s789.size>=2;},
             double_even_ko:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');const bs={};for(let x of p){const t=x.tiles[0];if(t.suit==='z'||t.num%2!==0)continue;if(!bs[t.suit])bs[t.suit]=[];bs[t.suit].push(t.num);}let f=0;for(let su in bs){const ns=bs[su].sort((a,b)=>a-b);for(let i=0;i<ns.length-1;i++)if(ns[i+1]-ns[i]===2){f++;break;}}return f>=2;},
             triple_even_ko:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');const bs={};for(let x of p){const t=x.tiles[0];if(t.suit==='z'||t.num%2!==0)continue;if(!bs[t.suit])bs[t.suit]=[];bs[t.suit].push(t.num);}let f=0;for(let su in bs){const ns=bs[su].sort((a,b)=>a-b);for(let i=0;i<ns.length-1;i++)if(ns[i+1]-ns[i]===2){f++;break;}}return f>=3;},
-            less_than_seven:h=>{if(h.length!==14)return false;const ho=h.filter(t=>t.suit==='z'),st=h.filter(t=>t.suit!=='z');if(ho.length!==2||ho[0].id!==ho[1].id||!['5','6','7'].includes(ho[0].num))return false;const ss=[...new Set(st.map(t=>t.suit))];if(ss.length!==1)return false;for(let n=1;n<=6;n++)if(st.filter(t=>t.num===n).length!==2)return false;for(let n=7;n<=9;n++)if(st.some(t=>t.num===n))return false;return true;},
-            greater_than_seven:h=>{if(h.length!==14)return false;const ho=h.filter(t=>t.suit==='z'),st=h.filter(t=>t.suit!=='z');if(ho.length!==2||ho[0].id!==ho[1].id||!['5','6','7'].includes(ho[0].num))return false;const ss=[...new Set(st.map(t=>t.suit))];if(ss.length!==1)return false;for(let n=7;n<=9;n++)if(st.filter(t=>t.num===n).length!==4)return false;for(let n=1;n<=6;n++)if(st.some(t=>t.num===n))return false;return true;},
+// ── 小于七 / 大于七（北极星 2026-10-02 硬编码口径）──────────────────
+// 形状 = 一个花色的三连对 + 四对字牌 = 6 + 8 = 14 张。
+//   小于七：112233 / 223344 / 334455 / 445566（1-6 区的三连对）
+//   大于七：778899（7-9 区的三连对）
+// 四对字牌 = 5z6z7z 中取一对以上 + 风牌对（合计 4 对，8 张）。
+less_than_seven:h=>isLessThanSeven(h),
+greater_than_seven:h=>isGreaterThanSeven(h),
+
             three_kingdoms:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');if(p.length!==3)return false;const ss=new Set(),ns=p.map(x=>x.tiles[0].num);for(let x of p)ss.add(x.tiles[0].suit);return ss.size===3&&ns.includes(2)&&ns.includes(5)&&ns.includes(8);},
             north_south_pass:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');if(!s.length)return false;const ns={};for(let x of s){const su=x.tiles[0].suit;if(su==='z')continue;if(!ns[su])ns[su]=new Set();for(let t of x.tiles)ns[su].add(t.num);}let hasDragon=false;for(let su in ns){if(ns[su].size>=9){let all=true;for(let i=1;i<=9;i++)if(!ns[su].has(i)){all=false;break;}if(all){hasDragon=true;break;}}}if(!hasDragon)return false;const wc={1:0,2:0,3:0,4:0};for(let t of h)if(t.suit==='z'&&['1','2','3','4'].includes(t.num))wc[t.num]++;return (wc['4']>=2&&wc['2']>=2)||(wc['4']>=3&&wc['2']>=1)||(wc['2']>=3&&wc['4']>=1);},
             // 镜中花（6.1，倍满 14 赋，门清）：112233s 112233m 55p，单钓 5p 和牌
