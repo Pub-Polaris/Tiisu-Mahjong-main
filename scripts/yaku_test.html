@@ -526,6 +526,26 @@ function ytDefineCases() {
         const r2 = ytCheck({ hand: ytBuild('z',333,'z',666,'z',777,'z',555,'z',22), winTile:'z2' });
         ytOk('三元不足 4 张 → 不算美人七对', !ytHas(r2, '美人七对（镜中丽人）'), ytNames(r2));
     });
+    ytT('互斥前置(notIf) · 四暗刻形时不判 清老头/绿一色/字一色/三国将', () => {
+        // 北极星 2026-10-02 裁定：不改 highYaku 顺序，改用互斥前置。
+        // ike.json 里这四个役带 "notIf":["four_ankou"]；四暗刻形成立时它们被跳过。
+        // 1) 清老头形（全幺九刻子）同时也是四暗刻形 → 归四暗刻
+        const r1 = ytCheck({ hand: ytBuild('m',111,'m',999,'p',111,'p',999,'z',11), winTile:'m1' });
+        ytOk('清老头形 → 含四暗刻', ytHas(r1, '四暗刻'), ytNames(r1));
+        ytOk('清老头形 → 不出现清老头', !ytHas(r1, '清老头'), ytNames(r1));
+        // 2) 字一色形 → 同样归四暗刻
+        const r2 = ytCheck({ hand: ytBuild('z',111,'z',222,'z',555,'z',666,'z',77), winTile:'z1' });
+        ytOk('字一色形 → 含四暗刻', ytHas(r2, '四暗刻'), ytNames(r2));
+        ytOk('字一色形 → 不出现字一色', !ytHas(r2, '字一色'), ytNames(r2));
+    });
+    ytT('互斥前置(notIf) · 非四暗刻形时 三国将 现在可达', () => {
+        // 222m 555p 888s 三组暗刻 + 234m 顺子 + 99z → 只有三组暗刻，四暗刻不成立
+        // → notIf 不触发 → 三国将(14) 命中
+        const r = ytCheck({ hand: ytBuild('m',222,'p',555,'s',888,'m',234,'z',99), winTile:'m4' });
+        ytOk('含三国将', ytHas(r, '三国将'), ytBrief(r));
+        ytEq('三国将 = 14 赋', ytFuOf(r, '三国将'), 14);
+        ytOk('不含四暗刻（仅三组暗刻）', !ytHas(r, '四暗刻'), ytNames(r));
+    });
     ytT('驷马越岭 · 四杠+大单钓自摸（荣和不成立）', () => {
         const kans = [
             { type:'ankan', tiles:[ytTile('m1'),ytTile('m1'),ytTile('m1'),ytTile('m1')] },
