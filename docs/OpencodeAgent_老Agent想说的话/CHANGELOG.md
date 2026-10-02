@@ -36,8 +36,76 @@
 | 261002-02 | 2026-10-02 | 工具坑 6.11 + 验收证据要求 + 链条引用校准 | 新增「Python 读写模式把行尾翻倍」一条；`AGENTS.md` 加 5.2.1（验收必须附命令+原始输出）；修链条里的失效 hash 与时间戳 |
 | 261002-03 | 2026-10-02 | 更正 `opencode` 的能力陈述（无 git，但有命令执行能力） | 区分「无 git」与「无工具」；5.2.1 加「无工具方豁免」；链条标题与协作表同步 |
 | 261002-04 | 2026-10-02 | 目录/交接同步 + **新增实验界面 `new.html`**（现代极简皮肤 + 游戏内切换） | `项目交接`+`规则缺口清单` 过时陈述对齐；`index.html` 拆出 `css/game.css`/`js/game.js`；新增 `css/theme-modern.css` 与 `new.html`；运行时工具条加「界面」切换（不跳转、不丢对局）；门户加界面选择 |
+| 261002-05 | 2026-10-02 | **修现代皮肤不生效**（`261002-04` 的缺陷）+ 断言补「皮肤接线」 | 切换器误禁用 `game.css`（含全部结构）→ 布局塌陷；现代皮肤改为 `html[data-ui="modern"]` 作用域覆盖层；`run_all.py` 新增 `skin wiring` 检查 |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-05 — 修现代皮肤不生效（261002-04 的缺陷）+ 断言补「皮肤接线」（2026-10-02）
+
+**主题**：北极星截图发现 `new.html` 现代版**布局塌成一行行文字**。查证后确认是 `261002-04` 的两个实现缺陷，
+本条修掉，并把这类"看不出来"的失效纳入 `run_all.py` 断言。
+
+### 一、缺陷 A：切换器把 `css/game.css` 也禁用掉了（致命）
+
+- **现象**：现代版整页丢布局 —— 无桌面、无座位定位、无牌面尺寸，只剩裸 DOM 文字。
+- **根因**：`261002-04` 把两套皮肤做成"两个 `<link>`，按版本 toggle `disabled`"。但
+  `css/game.css` 里装着**全部结构规则**（`.table{width:1460px;height:900px}`、`.seat-*` 定位、
+  `.tile` 尺寸与 `background-image`），它**不是皮肤，是骨架**；禁用它等于把骨架抽掉。
+- **修法**：`game.css` **任何时候都启用、绝不 disable**。现代皮肤改为**作用域覆盖层** ——
+  全部规则收在 `html[data-ui="modern"]` 之下，classic 时自然不生效。
+  切换只改 `data-ui` 属性，不再触碰任何 `<link>`。
+
+### 二、缺陷 B：作用域改写时逗号选择器只给第一项加了前缀
+
+- **现象**：即使属性正确，现代皮肤仍**毫无颜色**。
+- **根因**：把皮肤规则批量改写成 `html[data-ui="modern"] <选择器>` 时：
+  1. `:root` 被改成了 `html[data-ui="modern"] html[data-ui="modern"]`（自嵌套，永不匹配）→
+     **CSS 变量全部未定义**；而皮肤的颜色全靠 `var(--bg)` 一类变量，于是整页无色。
+  2. `.a, .b` 只给第一项加前缀 → `.b` 仍是裸选择器，又被 `game.css` 的同名规则盖住，
+     在 modern 下**回退成经典样式**（`.tli-item` / `.btn-*` / `.dealer-badge` 等）。
+- **修法**：`:root` 直接改写为 `html[data-ui="modern"]`；逗号列表**逐项**加前缀；
+  并加断言"改写后不允许存在未加作用域的顶层规则"。
+
+### 三、断言补强：`run_all.py` 新增 `skin wiring`
+
+原检查只核对 `data-ui` 属性值，所以**在布局已经塌掉的情况下照样报 PASS** —— 这正是本条要堵的洞。
+新检查对 4 个组合（`new.html` / `new.html?ui=classic` / `index.html` / `index.html?ui=modern`）同时核对：
+
+1. `data-ui` 是否为期望值；
+2. **`css/game.css` 未被禁用**（关键回归项）；
+3. 牌面已渲染（`class="tile`）；
+4. `#uiVersionSel` 已注入；
+5. 无 JS 报错。
+
+### 四、验收（5.2.1：命令 + 原始输出）
+
+命令：`python P:\Playground\scripts\run_all.py --runs 2`
+
+    YAKUTEST: PASS 133/133 断言 · 51 用例
+    ENGINETEST: PASS 73/73 断言 · 18 用例
+    [PASS] stats.json + state.json 逐字节不变
+    [PASS] auto games clean
+    界面版本接线（new.html / index.html）
+      [PASS] new.html               want=modern   got=modern   game.css-disabled=False jserr=0
+      [PASS] new.html?ui=classic    want=classic  got=classic  game.css-disabled=False jserr=0
+      [PASS] index.html             want=classic  got=classic  game.css-disabled=False jserr=0
+      [PASS] index.html?ui=modern   want=modern   got=modern   game.css-disabled=False jserr=0
+    ALL CHECKS PASSED
+
+另用无头 Edge 实测计算样式，确认现代皮肤真的生效：
+
+    --bg on html      = #07171c
+    body background   = rgb(7, 23, 28)
+    table background  = radial-gradient(120% 120% at 50% 0%, rgb(18,56,64) 0%, rgb(14,42,49) 45%, rgb(7,23,28) 100%)
+    table width/height= 1460px / 900px      ← 结构仍在
+
+### 五、教训（已写入本节，供后续参考）
+
+"检查属性对不对"**不等于**"检查东西长什么样"。凡是**视觉/布局**类改动，
+断言至少要覆盖一项**结构性事实**（尺寸、是否被禁用、关键类是否生效），
+否则会出现"断言全绿、界面全烂"。
+
 ---
 
 ## 261002-04 — 新增实验界面 new.html（现代极简皮肤 + 游戏内切换）（2026-10-02）

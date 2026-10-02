@@ -693,8 +693,11 @@ window.addEventListener('load', async () => {
 
 // ══════════════════════════════════════════════════════════════
 // UI 版本切换（classic / modern）
-//   两套皮肤共用本文件与同一份 DOM，只切换 <link> 的 disabled 状态，
-//   因此切换【不跳转页面、不丢对局状态】，可随时来回对比美术。
+//   两套皮肤共用本文件与同一份 DOM + 同一份 css/game.css（全部结构规则都在里面）。
+//   ⚠ 绝不可 disable css/game.css —— 它含有 .table/座位/牌面的尺寸与定位，
+//   关掉会让整张桌子塌成一行行文字。现代皮肤是"覆盖层"，全部规则被
+//   css/theme-modern.css 收在 html[data-ui="modern"] 之下，classic 下自然不生效。
+//   所以切换只改 data-ui 属性，【不跳转页面、不丢对局状态】。
 //   默认版本由页面上的 <html data-ui-default="..."> 决定（index=classic / new=modern），
 //   一旦使用者在运行时切换过，就用 localStorage 记住其选择。
 // ══════════════════════════════════════════════════════════════
@@ -719,11 +722,9 @@ window.addEventListener('load', async () => {
     }
     function apply(v) {
         if (VALID.indexOf(v) < 0) v = 'classic';
+        // 只改属性：现代皮肤的规则由 html[data-ui="modern"] 选择器接管。
+        // 不要碰任何 <link> 的 disabled —— 见本段顶部警告。
         root.setAttribute('data-ui', v);
-        const links = document.querySelectorAll('link[data-ui-sheet]');
-        for (let i = 0; i < links.length; i++) {
-            links[i].disabled = (links[i].getAttribute('data-ui-sheet') !== v);
-        }
     }
     apply(current());
 

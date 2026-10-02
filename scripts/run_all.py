@@ -194,6 +194,48 @@ def run_auto_games(edge, runs):
         FAILED.append("smoke")
 
 
+def run_skin_check(edge):
+    """界面版本（classic / modern）接线检查。
+
+    起因：2026-10-02 的 new.html 首版把 css/game.css 也 disable 掉了，而
+    game.css 里装着全部结构规则（.table 尺寸 / 座位定位 / 牌面尺寸），
+    结果整张桌子塌成一行行文字 —— 旧检查只看了 data-ui 属性，照样报 PASS。
+    所以这里必须同时核对：基础样式表【始终在位且未被禁用】。
+    """
+    log("")
+    log("=" * 62)
+    log("  界面版本接线（new.html / index.html）")
+    log("=" * 62)
+    cases = [
+        ("new.html", "modern"),
+        ("new.html?ui=classic", "classic"),
+        ("index.html", "classic"),
+        ("index.html?ui=modern", "modern"),
+    ]
+    bad = []
+    for path, want in cases:
+        tag = re.sub(r'[^0-9A-Za-z_.-]', '_', path)
+        url = "%s/%s%s&ts=%d" % (BASE, path, "&" if "?" in path else "?",
+                                 int(time.time() * 1000))
+        dom, errlog = dump_dom(edge, url, 30000, "skin_" + tag)
+        m = re.search(r'data-ui="(\w+)"', dom)
+        got = m.group(1) if m else None
+        js_err = re.findall(r"Uncaught|ReferenceError|TypeError|SyntaxError", errlog)
+        gamecss_off = re.search(r'css/game\.css"[^>]*disabled', dom) is not None
+        ok = (got == want) and not js_err and not gamecss_off \
+            and ('class="tile' in dom) and ('id="uiVersionSel"' in dom)
+        log("  [%s] %-22s want=%-8s got=%-8s game.css-disabled=%s jserr=%d"
+            % ("PASS" if ok else "FAIL", path, want, got, gamecss_off, len(js_err)))
+        if not ok:
+            bad.append(path)
+    if bad:
+        log("  [FAIL] 界面接线异常：%s" % ", ".join(bad))
+        FAILED.append("skin wiring")
+    else:
+        log("  [PASS] 两套皮肤接线正常（game.css 未被禁用）")
+        PASSED.append("skin wiring")
+
+
 def main():
     runs = 2
     no_start = False
@@ -244,6 +286,8 @@ def main():
         FAILED.append("run-state isolation")
 
     run_auto_games(edge, runs)
+
+    run_skin_check(edge)
 
     log("")
     log("=" * 62)
