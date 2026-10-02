@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>七子麻将 · 四人游戏</title>
-<link rel="stylesheet" href="css/game.css" data-ui-sheet="classic">
-<link rel="stylesheet" href="css/theme-modern.css" data-ui-sheet="modern">
+<!-- 基础样式：含全部结构规则，任何时候都不得禁用 -->
+<link rel="stylesheet" href="css/game.css">
+<!-- 现代皮肤（覆盖层）：仅当 <html data-ui="modern"> 时生效 -->
+<link rel="stylesheet" href="css/theme-modern.css">
 <script>
 // 尽早标上 data-ui，避免样式闪烁（具体逻辑见 js/game.js 末尾）
 (function(){var K="oc_ui_version",V=["classic","modern"],r=document.documentElement;var d=r.getAttribute("data-ui-default")||"classic",s=null;try{s=localStorage.getItem(K)}catch(e){}var q=null;try{q=new URLSearchParams(location.search).get("ui")}catch(e){}r.setAttribute("data-ui", V.indexOf(q)>=0?q:(V.indexOf(s)>=0?s:(V.indexOf(d)>=0?d:"classic")));})();
