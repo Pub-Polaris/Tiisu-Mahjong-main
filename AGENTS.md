@@ -270,6 +270,17 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 
 **不允许**只凭"代码看起来对"宣布通过。本机无 Node.js，不要用 `node --check`。
 
+### 5.2.1 验收必须附证据（对两个 agent 同样有效）
+
+**宣布"通过 / 全绿"时，必须同时给出可复核的证据**，不能只给结论。最低要求：
+
+1. **完整命令**：实际敲的那一条（例：`python P:\Playground\scripts\run_all.py --runs 2`）。
+2. **原始输出**：把关键行**原样贴出** —— 断言页的 `PASS n/n 断言 · m 用例` 与末行 `ALL CHECKS PASSED`（或 `SOME CHECKS FAILED` + 失败项）。
+3. **不要只写**"全绿"、"yaku 133/133、engine 73/73"这类**无来源的结论**；数字必须能在输出里逐字对上。
+4. **没跑就说没跑**：若因环境（无网络盘、服务未启动等）无法执行，须**明说"未验证"**并给出原因，不得默认"应该没问题"。
+
+> 依据：`AGENTS.md` 零.1（功能完成后统一跑全量）与本节；`已知坑` 6.5 说明从网络盘反复加载 `.ps1` 可能触发 AMSI 崩溃，故**优先用 `run_all.py`**（Python）并附其输出。
+
 ### 5.3 无头排查注意事项
 
 - **先剥离 `<script>` 再数 DOM**：`--dump-dom` 会输出内联脚本源码，里面的模板字符串（如 `class="tile clickable"`）会被误当成已渲染 DOM（虚假通过）。`smoke.ps1` 的 `Get-DomText` 已处理。
@@ -309,7 +320,7 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 4. 若改设置键：同步 `server.py` 的 `DEFAULT_SETTINGS` + `portal.html` + `debug.html`。
 5. 若改役种：`ike.json`（数据）与 `src/winchecker.js` 的 `conditionFn`（判定）**必须配套**。
 6. **不得对仓库重新 `git init` 或强推覆盖历史**。远程为 `Pub-Polaris/Tiisu-Mahjong-main`（`main` 分支），其 `Initial commit`（MIT LICENSE）必须保留；与远端不一致时用 fetch + merge 解决。版本载体为 **git 提交 + `backup/*.tar.gz` 双轨**，两者都不得移除。
-7. **提交与交付**：一次改动的"交付"= 跑完 `run_all.py` 全绿 → 追加 CHANGELOG → 同步受影响文档与页脚 → 落一份 `backup_*.tar.gz` → **`git commit` 并 `git push origin main`**。只提交不推送（或只备份不提交）都算未交付。
+7. **提交与交付**：一次改动的"交付"= 跑完 `run_all.py` 全绿 → 追加 CHANGELOG → 同步受影响文档与页脚 → 落一份 `backup_*.tar.gz` → **`git commit` 并 `git push origin main`**。只提交不推送（或只备份不提交）都算未交付。**交付说明里必须附 5.2.1 要求的校验证据**（命令 + 原始输出）。
 
 8. **每个提交带双 trailer + 链条登记**：commit message 末尾加两行 —— `Agent: <who>`（`dsh` / `opencode` / `北极星`）与 `Pair: dsh+opencode`；`git log --grep='^Agent:'` 可筛选任一方。同时在根目录 `AGCOMMIT_CHAIN.MD` **追加一行摘要**（时间 / Agent / commit / 改了什么 / 留给谁）；该文件**只追加、不回改别人的行**，且**不进"必读清单"**（按需查，避免会话成本随提交数增长）。**推之前先 `git pull --rebase origin main`**：远程已有他人提交时用 rebase，**不要** `--force`。 别人提交后，把链条里上一行的 `（本条）` 回填成真实 hash（规则 8）。
 
