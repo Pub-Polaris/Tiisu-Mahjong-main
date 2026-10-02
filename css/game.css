@@ -1,0 +1,118 @@
+
+*{box-sizing:border-box;user-select:none}
+body{background:#0f2b10;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;font-family:'Segoe UI',Roboto,sans-serif;margin:0;padding:12px;color:#e4f0d8}
+.app{width:1460px;display:flex;flex-direction:column;gap:10px}
+
+/* ── 方形桌面（更亮更大）── */
+.table{width:1460px;height:900px;background:linear-gradient(135deg,#2e6a34,#25702f);border-radius:30px;position:relative;border:6px solid #57a15c;box-shadow:0 14px 44px rgba(0,0,0,.75),inset 0 0 80px rgba(120,220,120,.12);flex:none}
+.table::before{content:'';position:absolute;inset:10px;border:2px solid #7bc47f;border-radius:22px;pointer-events:none}
+
+/* ── 左上角信息栏（雀魂风格）── */
+.top-left-info{position:absolute;left:24px;top:18px;z-index:10;background:#1d5a28cc;border:2px solid #7fd48a;border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;min-width:230px}
+.top-left-info .tli-item{font-size:14px;color:#d8f0cc;white-space:nowrap}
+.top-left-info .tli-item strong{color:#ffedb0;font-size:15px}
+.tli-scores{display:grid;grid-template-columns:auto auto;column-gap:16px;row-gap:2px;margin-top:4px;border-top:1px solid #3f8a4f;padding-top:6px;font-size:13px}
+.tli-scores .s-name{color:#b8d8a0}
+.tli-scores .s-val{color:#ffe9a0;font-weight:700;text-align:right;min-width:70px}
+
+/* ── 中央固定方形：统一弃牌河（四家按出牌顺序，不分割）── */
+.center-square{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:580px;height:380px;background:#1d5a28;border:3px solid #7fd48a;border-radius:24px;z-index:10;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 8px 26px rgba(0,0,0,.55);padding:14px 16px}
+.center-river-label{font-size:13px;color:#b8d8a0;align-self:flex-start}
+.center-river{max-height:310px;overflow-y:auto;width:100%}
+
+/* 四个座位 */
+.seat{position:absolute;display:flex;flex-direction:column;align-items:center;z-index:5}
+.seat-top{top:14px;left:50%;transform:translateX(-50%);width:660px}
+.seat-bottom{bottom:14px;left:50%;transform:translateX(-50%);width:1100px}
+.seat-left{left:16px;top:50%;transform:translateY(-50%);width:280px}
+.seat-right{right:16px;top:50%;transform:translateY(-50%);width:280px}
+
+.pname{color:#ecf8e2;font-size:17px;font-weight:700;display:flex;gap:8px;align-items:center;margin-bottom:5px;white-space:nowrap}
+.pname .seat-badge{background:#3a6a3a;border-radius:10px;padding:1px 9px;font-size:13px;color:#d8f0c8}
+.pname .dealer-badge{background:#e0b040;color:#1a1a0a;padding:1px 9px;border-radius:10px;font-size:13px;font-weight:800}
+.pname .turn-mark{color:#9dff9d;font-size:18px}
+
+/* 手牌 */
+.ptiles{display:flex;gap:3px;justify-content:center}
+.ptiles.nowrap{flex-wrap:nowrap}
+.ptiles.wrap{display:grid;grid-template-columns:repeat(14,min-content);gap:3px;justify-content:center}
+.tile{width:50px;height:68px;background-color:#f6f1e3;background-size:100% 100%;background-repeat:no-repeat;background-position:center;border-radius:8px;box-shadow:0 4px 0 #3a3a2a;position:relative;flex:none}
+.tile.hidden{background:#2a4a6a;border:2px solid #4a6a8a;box-shadow:0 4px 0 #16283a}
+.tile.clickable{cursor:pointer;transition:transform .08s}
+.tile.clickable:hover{transform:translateY(-9px);box-shadow:0 9px 0 #4a6a3a}
+.tile.small{width:32px;height:44px;border-radius:5px}
+.tile.side{width:19px;height:26px;border-radius:3px;box-shadow:0 2px 0 #3a3a2a}
+.tile.tiny{width:24px;height:33px;border-radius:4px;box-shadow:0 2px 0 #3a3a2a}
+.tile.last-discard{box-shadow:0 0 12px #ff8a8a,0 4px 0 #3a3a2a;outline:2px solid #ff6a6a}
+
+/* 副露 */
+.melds{display:flex;gap:6px;margin-top:3px;flex-wrap:wrap;justify-content:center}
+.meld-group{display:flex;align-items:center;gap:1px;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 3px}
+.meld-group .mtype{font-size:11px;color:#ffe9a0;margin-right:3px;font-weight:700}
+.meld-group .tile{box-shadow:none;border:1px solid #b8b890}
+
+/* 各家分区：副露区(左) / 手牌区（操作按钮在玩家手牌上方） */
+.seat{display:flex;flex-direction:column;align-items:center;gap:4px}
+.meld-area{display:flex;flex-direction:column;gap:4px;align-items:center;order:-1}
+.hand-area{display:flex;align-items:center;justify-content:center}
+.hand-area.rotate-left{transform:rotate(90deg)}
+.hand-area.rotate-right{transform:rotate(-90deg)}
+.seat-controls{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap;min-height:34px}
+
+/* 弃牌河 */
+.pdiscards{display:grid;grid-template-columns:repeat(7,min-content);gap:1px;margin-top:4px;justify-content:center}
+.pdiscards .tile{box-shadow:none;border:1px solid #9a9a7a;position:relative}
+/* 河牌高亮覆盖层：悬停手牌时显示 */
+.pdiscards .tile.hl::after{content:'';position:absolute;inset:0;background:#CCCC33cc;border-radius:3px}
+
+/* 按钮 */
+.btn{border:none;border-radius:18px;padding:8px 18px;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 4px 0 #1a2a1a;transition:all .06s;color:#e8f0d8}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 #1a2a1a}
+.btn:disabled{opacity:.35;transform:translateY(2px);pointer-events:none}
+.btn-primary{background:#d4a448;color:#1a1a0a}
+.btn-secondary{background:#5a8a4a}
+.btn-win{background:#d44;color:#fff}
+.btn-auto{background:#2a8a8a}
+.btn-danger{background:#8a4a4a}
+.btn-sm{font-size:14px;padding:5px 14px;border-radius:14px}
+
+/* 提示覆盖 */
+.msg-overlay{position:absolute;top:50%;left:50%;transform:translate(-50%,-170%);background:rgba(0,0,0,.9);color:#fde68a;padding:14px 30px;border-radius:18px;font-size:20px;font-weight:800;z-index:30;text-align:center;pointer-events:none;max-width:800px}
+
+/* 分析栏 / 消息栏 */
+.panel{background:#1c4a24;border:1px solid #4f9a58;border-radius:16px;padding:10px 18px;color:#d8f0cc;font-size:15px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;min-height:40px}
+.panel .label{color:#a0d8a8;font-size:14px}
+.panel .content{color:#ffedb0;font-weight:600}
+.msglog{background:#12331a;border-radius:16px;padding:10px 18px;border-left:6px solid #d0b060;color:#e8f0d8;font-size:16px;min-height:38px;display:flex;align-items:center;flex-wrap:wrap;gap:6px 16px}
+
+/* 运行时工具条（游戏页只留日志 + 少量运行时按钮；配置移门户/debug） */
+.runtime-bar{background:#1c4022;border-radius:16px;padding:10px 18px;border:1px solid #6a5a4a;display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;font-size:15px}
+.runtime-bar .dbg-label{color:#b8d8a8;font-size:14px}
+.debug-log{background:#0d250f;border-radius:16px;padding:10px 16px;border:1px solid #4f8a58;color:#b8d8b0;font-size:13px;max-height:170px;overflow-y:auto;font-family:Consolas,'Courier New',monospace;display:flex;flex-direction:column;gap:1px}
+.debug-log .d-LOG{color:#b8d8b0}
+.debug-log .d-WARN{color:#ffc840}
+.debug-log .d-ERROR{color:#ff7a6a}
+.debug-log .d-INFO{color:#7dd3fc}
+
+/* ── 底部操作条（吃碰杠/荣和 + 倒计时）── */
+/* 主视角手牌上方的行动区：其上是长考倒计时，其下是一行按钮 */
+.seat-actions{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:64px}
+.seat-actions .seat-timer{color:#ffd0d0;font-size:16px;font-weight:700;min-height:20px}
+.seat-actions .seat-timer strong{color:#ff9;font-size:18px}
+.seat-actions .seat-btn-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.seat-actions .act-msg{color:#ffe9a0;font-size:13px}
+
+/* ── 牌山/王牌查看器 ── */
+.wall-viewer{background:#14381a;border:1px solid #3f7a48;border-radius:16px;padding:10px 16px}
+.wv-tabs{display:flex;gap:6px;margin-bottom:8px}
+.wv-tab{background:#2a5a30;border:1px solid #4f8a58;border-radius:12px;padding:4px 16px;font-size:14px;color:#d8f0cc;cursor:pointer}
+.wv-tab.active{background:#d4a448;color:#1a1a0a;border-color:#e0b040}
+.wv-body{display:flex;flex-wrap:wrap;gap:2px;align-items:center;min-height:44px}
+.wv-tile{width:22px;height:30px;background-color:#f6f1e3;background-size:100% 100%;background-repeat:no-repeat;border-radius:3px;border:1px solid #8a8a6a;position:relative}
+.wv-tile.blue-mark{border:2px solid #4aa3ff}
+.wv-tile.yellow-mark{border:2px solid #ffd84a}
+.wv-tile.face-down{background:#2a4a6a;border:1px solid #4a6a8a}
+.wv-legend{font-size:12px;color:#b8d8a0;margin-top:6px;display:flex;gap:16px;align-items:center}
+.wv-legend .sw{display:inline-block;width:16px;height:16px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.tli-ma{display:flex;gap:2px;align-items:center;flex-wrap:wrap;font-size:12px;color:#b8d8a0;min-height:24px}
+.tli-ma .wv-tile{width:18px;height:25px;background-size:100% 100%}

@@ -48,6 +48,13 @@ a.btn-link:hover{transform:translateY(-2px)}
 
     <div class="card">
         <h2>🎮 开始游戏</h2>
+        <div class="row" style="margin-bottom:12px">
+            <span>界面：</span>
+            <select class="input" id="uiVersionSel" onchange="try{localStorage.setItem('oc_ui_version',this.value)}catch(e){}" style="width:210px">
+                <option value="classic">经典（现有）</option>
+                <option value="modern">现代极简（实验版）</option>
+            </select>
+        </div>
         <div class="row">
             <button class="mode-btn" onclick="openGame(1)">一局<span class="d">单场次，打完即止</span></button>
             <button class="mode-btn" onclick="openGame(4)">东风场<span class="d">每位玩家坐庄一次</span></button>
@@ -141,10 +148,22 @@ a.btn-link:hover{transform:translateY(-2px)}
     </div>
 </div>
 <script>
+// 界面版本：恢复上次选择（与游戏内切换共用 oc_ui_version）
+document.addEventListener('DOMContentLoaded', function(){
+    try { var v = localStorage.getItem('oc_ui_version');
+          var s = document.getElementById('uiVersionSel');
+          if (s && v) s.value = v; } catch (e) {}
+});
 var OPT_IDS = ['same_color_old_young','same_color_double_old_young','two_color_double_old_young','double_even_ko','triple_even_ko'];
 
-function openGame(mode, isTest) {
-    var url = 'index.html?mode=' + mode + (isTest ? '&test=1' : '');
+function currentUi() {
+    try { var v = localStorage.getItem('oc_ui_version'); return (v === 'modern') ? 'modern' : 'classic'; }
+    catch (e) { return 'classic'; }
+}
+function openGame(mode, isTest, ui) {
+    var sel = document.getElementById('uiVersionSel');
+    var v = ui || (sel && sel.value) || currentUi();
+    var url = 'index.html?mode=' + mode + (isTest ? '&test=1' : '') + '&ui=' + v;
     window.open(url, '_blank');
 }
 
