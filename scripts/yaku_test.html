@@ -505,6 +505,27 @@ function ytDefineCases() {
         ytOk('不出现「一色四连刻」（该形无独立役）', !ytHas(r, '一色四连刻'), ytNames(r));
         ytOk('总赋 ≥ 28（四暗刻 28 + 形状附带的下位役）', r.totalFu >= 28, String(r.totalFu));
     });
+    ytT('写死口径 · 纯正水中月：固定牌型（单花色 2 组 112233 + p1 对，单钓 1p）', () => {
+        // 硬编码判据：和牌张 = 1p；共 7 对；p1 恰 2 张；只含【一个花色】且该花色恰有 2 组 112233。
+        // 用例1：s 112233 ×2 + p 11，和 1p → 成立（双役满 70000）
+        const r1 = ytCheck({ hand: ytBuild('s',112233,'s',112233,'p',11), selfDraw:false, winTile:'p1' });
+        ytOk('含纯正水中月', ytHas(r1, '纯正水中月'), ytBrief(r1));
+        ytEq('双役满 = 70000 点', r1.specialPoints, 70000);
+        // 用例2：两花色各 1 组 112233（= 镜中花形状）→ 不是纯正水中月
+        const r2 = ytCheck({ hand: ytBuild('s',112233,'m',112233,'p',11), selfDraw:false, winTile:'p1' });
+        ytOk('两花色 → 不算纯正水中月', !ytHas(r2, '纯正水中月'), ytNames(r2));
+    });
+    ytT('写死口径 · 美人七对：固定牌型（三元各 4 张 + p1 恰 2 张，且不得有杠）', () => {
+        // 硬编码判据：无杠；z5/z6/z7 各【恰】4 张；p1【恰】2 张。
+        // 用例1：三元各 4 + p1 对 → 成立（双役满 70000）
+        const r1 = ytCheck({ hand: ytBuild('z',5555,'z',6666,'z',7777,'p',11), winTile:'p1' });
+        ytOk('含美人七对', ytHas(r1, '美人七对（镜中丽人）'), ytBrief(r1));
+        ytEq('双役满 = 70000 点', r1.specialPoints, 70000);
+        // 用例2：白只有 3 张（不足 4）→ 不成立。
+        // 注意牌山合法性：不能凑出 5 张白，故改用「333 白 + 22 发」的 14 张合法形。
+        const r2 = ytCheck({ hand: ytBuild('z',333,'z',666,'z',777,'z',555,'z',22), winTile:'z2' });
+        ytOk('三元不足 4 张 → 不算美人七对', !ytHas(r2, '美人七对（镜中丽人）'), ytNames(r2));
+    });
     ytT('驷马越岭 · 四杠+大单钓自摸（荣和不成立）', () => {
         const kans = [
             { type:'ankan', tiles:[ytTile('m1'),ytTile('m1'),ytTile('m1'),ytTile('m1')] },
