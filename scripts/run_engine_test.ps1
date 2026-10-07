@@ -34,7 +34,6 @@ $script:Root = Split-Path -Parent $PSScriptRoot
 
 function Get-PythonExe {
     $cands = @(
-        "<PYTHON>",
         "C:\Program Files\PyManager\python.exe",
         "C:\Python313\python.exe",
         "C:\Python312\python.exe"

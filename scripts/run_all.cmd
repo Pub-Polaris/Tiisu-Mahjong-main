@@ -18,7 +18,6 @@ set RUNS=%1
 if "%RUNS%"=="" set RUNS=2
 
 set PY=python
-if exist "<PYTHON>" set "PY=<PYTHON>"
 if exist "C:\Program Files\PyManager\python.exe" set "PY=C:\Program Files\PyManager\python.exe"
 
 "%PY%" "%~dp0run_all.py" --runs %RUNS%

@@ -76,7 +76,7 @@ P:\Playground\
 | 项目路径 | `P:\Playground`（实际为网络路径 `<NAS>\Playground`） |
 | 端口 | `7777`（**只能有一个 server 实例**） |
 | Edge | `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe` |
-| Python | 优先 `py` / `python`；本机可用 `<PYTHON>` 或 `C:\Program Files\PyManager\python.exe` |
+| Python | 优先 `py` / `python`；也可用 `C:\Program Files\PyManager\python.exe` |
 | Node.js | **本机没有**；不要依赖 `node --check`（用第四节的浏览器语法探针替代） |
 | 无头浏览器 | 用 `--headless=new`；旧 `--headless` 在本机不稳定 |
 
@@ -97,7 +97,7 @@ tar -czf "backup\backup_$ts.tar.gz" server.py run.cmd portal.html debug.html ind
 ```powershell
 Get-CimInstance Win32_Process -Filter "Name='python.exe'" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 Start-Sleep -Seconds 2
-Start-Process -FilePath "<PYTHON>" -ArgumentList "<NAS>\Playground\server.py" -WindowStyle Hidden
+Start-Process -FilePath "python" -ArgumentList "server.py" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 netstat -ano | Select-String ":7777" | Select-String "LISTENING"
 ```

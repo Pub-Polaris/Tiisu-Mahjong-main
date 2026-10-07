@@ -43,7 +43,6 @@ EDGE_CANDIDATES = [
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
 ]
 PY_CANDIDATES = [
-    r"<PYTHON>",
     r"C:\Program Files\PyManager\python.exe",
     r"C:\Python313\python.exe",
 ]

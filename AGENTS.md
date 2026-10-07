@@ -85,7 +85,7 @@ tar -czf "P:\Playground\backup\backup_$ts.tar.gz" --exclude=backup --exclude=log
 $pids = @(Get-NetTCPConnection -LocalPort 7777 -State Listen -ErrorAction SilentlyContinue).OwningProcess
 foreach ($p in $pids) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 2
-Start-Process -FilePath "<PYTHON>" -ArgumentList "<NAS>\Playground\server.py" -WindowStyle Hidden
+Start-Process -FilePath "python" -ArgumentList "server.py" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 netstat -ano | Select-String ":7777" | Select-String "LISTENING"
 # 自检：只有 1 个 python 在监听 7777
@@ -146,14 +146,14 @@ Select-String -Path "$env:TEMP\x.html" -Pattern 'class="tile clickable"' | Measu
 |---|---|
 | 远程仓库 | `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`（公开，MIT） |
 | 默认分支 | `main` |
-| 本地仓库 | `P:\Playground\.git`（实际落在 `<NAS>\Playground\.git`） |
+| 本地仓库 | `P:\Playground\.git`（实际落在 `<NAS>\.git`） |
 | 提交身份 | 仓库级 `Pub-Polaris` / `Pub-Polaris@users.noreply.github.com` |
 | 提交历史 | `8a3eb4d` 初始化；`f29bffb` 合并远端 `Initial commit`（保留 LICENSE） |
 
 **`.gitignore` 排除项**（不入库）：`backup/`、`logs/`、`state.json`、`settings.json`、`*.zip`。入库体积约 0.54 MB。
 
 > 本机前置：仓库在网络路径上，git 会报 `dubious ownership`，需先执行
-> `git config --global --add safe.directory "%(prefix)///<NAS>/Vol3/Playground"`。
+> `git config --global --add safe.directory "%(prefix)///<NAS>"`。
 > 推送走 HTTPS（凭据已存于凭据管理器）；**SSH 22 端口在本网络被拒，不要用 SSH**。
 
 **每次改动后**：
