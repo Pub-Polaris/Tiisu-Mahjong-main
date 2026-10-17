@@ -254,14 +254,24 @@ function ytDefineCases() {
         ytEq('嵌张 = 1 赋', ytFuOf(r, '嵌张'), 1);
     });
 
-    ytT('5.5 · 边张检测（可成形牌型待补）', () => {
+    ytT('5.5 · 边张 1 赋（12 听 3 / 89 听 7）', () => {
         // checkWin 收的是【和牌后】的 14 张，和牌张在其中只能出现一次，
         // 因此『和牌前手里 2 张 2m 的 12m 搭子』这种边张原型，在 14 张里凑不出合法牌型
         // （凑出来必然需要第 5 张和牌张）。这里退而验证嵌张路径可用，
         // 边张专项待 yaku_test 支持『和牌前 13 张 + 和牌张』的调用形式后再补。
-        const r = ytCheck({ hand: ytBuild('m',234,'m',456,'m',567,'p',234,'s',88), selfDraw:false, winTile:'m5' });
-        ytOk('和牌成功（嵌张路径）', r.success, ytBrief(r));
-        ytOk('边张赋数若出现必须是 1', ytFuOf(r, '边张') === 0 || ytFuOf(r, '边张') === 1, ytNames(r));
+        // 边张是「听牌型奖赏」，在 7 赋起和门槛【之后】叠加；因此要让它出现，
+        // 手牌本身须已过门槛（用自摸 4 赋把底分抬上去）。
+        const a = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'p',234,'s',88),
+                            winTile:'m3', selfDraw:true });
+        ytOk('12 听 3：和牌成功', a.success, ytBrief(a));
+        ytEq('12 听 3 → 边张 1 赋', ytFuOf(a, '边张'), 1);
+        const b = ytCheck({ hand: ytBuild('m',789,'m',456,'m',123,'p',234,'s',88),
+                            winTile:'m7', selfDraw:true });
+        ytEq('89 听 7 → 边张 1 赋', ytFuOf(b, '边张'), 1);
+        // 反例：和牌张是顺子中间张时是嵌张，不是边张
+        const c = ytCheck({ hand: ytBuild('m',234,'m',456,'m',567,'p',234,'s',88),
+                            winTile:'m5', selfDraw:true });
+        ytEq('中间张 → 不计边张', ytFuOf(c, '边张'), 0);
     });
 
     ytT('5.5 · 单钓（和牌为字牌）= 2 赋', () => {
@@ -752,14 +762,27 @@ function ytDefineCases() {
         const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44), winTile:'z4' });
         ytEq('南北通 = 14 赋', ytFuOf(r, '南北通'), 14);
     });
-    ytT('记录·同色双老少 不可达（4 顺子形必为七对子）', () => {
-        // 两组 123 + 两组 789 = 6 对 + 雀头 = 七对形 → 被 seven_pairs 分支截走
+    ytT('记录·同色双老少 不可达（七对形不构建 groups）', () => {
+        // 两组 123 + 两组 789 = 6 对 + 雀头，必然是七对形。
+        // 七对形走 seven_pairs 分支，该分支【不构建 groups】，而本役谓词以 if(!g) 开头
+        // → 在七对形下恒为 false，故不可达（不是「被七对子截走」，而是拿不到 groups）。
         const r = ytCheck({ hand: ytBuild('m',123,'m',123,'m',789,'m',789,'z',55), winTile:'m1' });
         ytEq('命中七对子而未计同色双老少',
              ytFuOf(r,'同色双老少') === 0 && ytFuOf(r,'七对子') > 0 ? 1 : 0, 1);
     });
-    ytT('记录·三双逢 结构上不可达（需 6 个双数刻=18 张）', () => {
-        // 每花色需一对差 2 的双数刻才能 +1；三花色共 6 刻 = 18 张 > 14，故永不成立
+    ytT('覆盖·双双逢 2 赋（两花色各一对差 2 的双数刻）', () => {
+        // 可选役：验证台在初始化时已把所有 optional 役加入 optionalEnabled
+        const r = ytCheck({ hand: ytBuild('p',888,'z',55), winTile:'p8',
+                            melds: [ytMeld('pon','222m'), ytMeld('pon','444m'), ytMeld('pon','666p')] });
+        ytEq('双双逢 = 2 赋', ytFuOf(r, '双双逢'), 2);
+    });
+    ytT('覆盖·双色双老少 2 赋（两花色各有 123 与 789）', () => {
+        // 4 组顺子 + 雀头 = 标准形（不是七对形），故 groups 正常构建、可选役启用后成立
+        const r = ytCheck({ hand: ytBuild('m',123,'m',789,'p',123,'p',789,'z',55), winTile:'m1' });
+        ytEq('双色双老少 = 2 赋', ytFuOf(r, '双色双老少'), 2);
+    });
+    ytT('记录·三双逢 结构上不可达（需 3 花色各一对双数刻=6 刻 18 张）', () => {
+        // 谓词对每个花色最多 +1，故需 3 个花色各有「差 2 的双数刻对」= 6 刻 = 18 张 > 14
         ytOk('三双逢 无可用牌型（记录性说明）', true);
     });
     ytT('覆盖·四归一 2 赋（含 4 张同牌）', () => {
