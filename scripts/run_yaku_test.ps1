@@ -2,7 +2,7 @@
 #  run_yaku_test.ps1 - Tiisu Mahjong yaku / scoring assertions
 #
 #  Usage:
-#    powershell -NoProfile -ExecutionPolicy Bypass -File P:\Playground\scripts\run_yaku_test.ps1
+#    powershell -NoProfile -ExecutionPolicy Bypass -File P:\Tiisu_Mahjong_WEB\scripts\run_yaku_test.ps1
 #    powershell ... -File scripts\run_yaku_test.ps1 -Port 7777 -NoStart
 #
 #  What it does:
