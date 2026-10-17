@@ -8,7 +8,7 @@ Four-player Mahjong variant with its own yaku set and "Fu-based" scoring. Pure f
 
 > **摘要**：本项目是自创规则的四人麻将实现。本文件是给自动化编码 agent 的项目契约：环境、地图、命令、验收标准与红线。
 > **面向**：所有在本仓库工作的 agent（opencode、Deepseek Harness / DSH）。
-> **基线**：代码 `E:\工程文件\TiisuMahjong\Web`，文档版本 `261002-26`（2026-10-18），对应备份 `backup_20261018_031304.tar.gz`。
+> **基线**：代码 `E:\工程文件\TiisuMahjong\Web`，文档版本 `261002-27`（2026-10-18），对应备份 `backup_20261018_033028.tar.gz`。
 
 ## 零、任务执行铁律
 

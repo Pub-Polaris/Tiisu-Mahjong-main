@@ -120,6 +120,7 @@
 | 2026-10-18 03:2x | `dsh` | `（本条）` | **更正「非公网 IP」归因**（CHANGELOG `261002-24`）：真因是北极星本机**本地反向代理**，不是网络策略；已写进全局 `~/.dsh/AGENTS.md`（新章节）、项目 `AGENTS.md` 10.3、`docs/knowledge/sources.md`；处理方式=不重试、改用网页版、必要时反代透传 | 留给 opencode：**遇到取不到的 URL，先想"是不是本机反代"，别归因网络策略** |
 | 2026-10-18 03:4x | `dsh` | `（本条）` | **golden corpus 生成器 + C# 仓库建仓**（CHANGELOG `261002-25`）：`yaku_test.html` 加 `?golden=1` 钩子（只记录、不影响测试）；`scripts/gen_golden.py` 产出 `NET/tests/fixtures/yaku-golden.json`（102 条 / 92 成功）；C# 新仓 `Pub-Polaris/Tiisu-Mahjong-CSharp` 首提交 `ba1eb1b` | 留给 opencode：**改了 JS 判役就要重跑 `gen_golden.py`** 并把新 JSON 提交到 C# 仓 |
 | 2026-10-18 04:1x | `dsh` | `（本条）` | **高目优先**（北极星裁定，CHANGELOG `261002-26`）：`WinChecker.maxSplit` 默认开启，枚举全部拆法按 (赋数, 役种数) 取最优；实证 `m111222333+p123+p99` 18→29 赋；现有 102 条语料 0 差异；断言 202→205、golden 重生成 104 条 | 留给 opencode：**判役现在默认高目**；若要旧行为请显式 `maxSplit=false` |
+| 2026-10-18 04:5x | `dsh` | `（本条）` | **资料库：麻将各流派役种体系对照**（CHANGELOG `261002-27`）：新增 `docs/knowledge/mahjong-yaku-systems.md`（国标 81 番/12 档、日麻 43 役+20 役满含番数、中庸/古典待补）；含与七子的差异对照；记录网络可达性（萌百 WAF/百度 403/维基被反代） | 留给 opencode：**查中文麻将资料别在萌百/百度/维基上耗时间**，用 PDF/GitHub/jsDelivr |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `261002-26`（2026-10-18） · 对应备份 `backup_20261018_031304.tar.gz`
+> 页脚：文档版本 `261002-27`（2026-10-18） · 对应备份 `backup_20261018_033028.tar.gz`
