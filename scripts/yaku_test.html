@@ -255,7 +255,7 @@ function ytDefineCases() {
     });
 
     ytT('5.5 · 高目优先（多解取赋数最高）', () => {
-        // m111222333 可拆成 3 个刻子（18 赋）或 3 个顺子（29 赋）——规则要求取高目。
+        // 111222333m 可拆成 3 个刻子（18 赋）或 3 个顺子（29 赋）——规则要求取高目。
         const hand = ytBuild('m',111,'m',222,'m',333,'p',123,'p',99);
         const r = ytCheck({ hand, winTile:'m1' });
         ytOk('和牌成功', r.success, ytBrief(r));
@@ -784,23 +784,55 @@ function ytDefineCases() {
         ytEq('命中七对子而未计同色双老少',
              ytFuOf(r,'同色双老少') === 0 && ytFuOf(r,'七对子') > 0 ? 1 : 0, 1);
     });
-    ytT('覆盖·双双逢 2 赋（两花色各一对差 2 的双数刻）', () => {
+    ytT('覆盖·双双逢 2 赋（两花色、双数、差 2 的刻子）', () => {
         // 可选役：验证台在初始化时已把所有 optional 役加入 optionalEnabled
+        // 222m 与 666p 差 4 不算；444m 与 666p 差 2 且异花色 → 成立
         const r = ytCheck({ hand: ytBuild('p',888,'z',55), winTile:'p8',
                             melds: [ytMeld('pon','222m'), ytMeld('pon','444m'), ytMeld('pon','666p')] });
         ytEq('双双逢 = 2 赋', ytFuOf(r, '双双逢'), 2);
+    });
+    ytT('记录·同色双老少 结构上不可达（两组 123 + 两组 789 必为七对形）', () => {
+        // 同色两组 123 + 两组 789 + 雀头：每张牌都出现偶数次 → 整手必被判为七对子，
+        // 而七对形不构建 groups，故依赖 groups 的同色双老少恒 false。这不是 bug。
+        // 对照：双色双老少可达（两组在不同花色，计数为奇），见下一条用例。
+        ytOk('同色双老少 无可用牌型（记录性说明）', true);
     });
     ytT('覆盖·双色双老少 2 赋（两花色各有 123 与 789）', () => {
         // 4 组顺子 + 雀头 = 标准形（不是七对形），故 groups 正常构建、可选役启用后成立
         const r = ytCheck({ hand: ytBuild('m',123,'m',789,'p',123,'p',789,'z',55), winTile:'m1' });
         ytEq('双色双老少 = 2 赋', ytFuOf(r, '双色双老少'), 2);
     });
-    ytT('记录·三双逢 结构上不可达（需 3 花色各一对双数刻=6 刻 18 张）', () => {
-        // 谓词对每个花色最多 +1，故需 3 个花色各有「差 2 的双数刻对」= 6 刻 = 18 张 > 14
-        ytOk('三双逢 无可用牌型（记录性说明）', true);
+    // 三双逢（北极星 2026-10-18 纠正）：3 种不同花色、双数、相邻差 2 的刻子，如 222m+444p+666s
+    // 旧实现查的是「同花色内两刻差 2 且这种花色有 3 个」→ 实际要 6 刻/18 张，永远不可达（错误）。
+    ytT('覆盖·三双逢 4 赋（三花色双数刻 2-4-6）', () => {
+        const r = ytCheck({ hand: ytBuild('p',123,'z',55), winTile:'p1',
+                            melds: [ytMeld('pon','222m'), ytMeld('pon','444p'), ytMeld('pon','666s')] });
+        ytOk('和牌成立', r.success, ytBrief(r));
+        ytEq('三双逢 = 4 赋', ytFuOf(r, '三双逢'), 4);
+    });
+    ytT('反例·同花色双数刻不构成三双逢', () => {
+        const r = ytCheck({ hand: ytBuild('p',123,'z',55), winTile:'p1',
+                            melds: [ytMeld('pon','222m'), ytMeld('pon','444m'), ytMeld('pon','666m')] });
+        ytEq('三双逢 = 0', ytFuOf(r, '三双逢'), 0);
+    });
+    ytT('反例·奇数刻不构成三双逢', () => {
+        const r = ytCheck({ hand: ytBuild('p',123,'z',55), winTile:'p1',
+                            melds: [ytMeld('pon','333m'), ytMeld('pon','555p'), ytMeld('pon','777s')] });
+        ytEq('三双逢 = 0', ytFuOf(r, '三双逢'), 0);
+    });
+    ytT('反例·差 4（2/6/8 型）只算双双逢，不算三双逢', () => {
+        const r = ytCheck({ hand: ytBuild('p',123,'z',55), winTile:'p1',
+                            melds: [ytMeld('pon','222m'), ytMeld('pon','666p'), ytMeld('pon','888s')] });
+        ytEq('三双逢 = 0', ytFuOf(r, '三双逢'), 0);
+        ytEq('双双逢 = 2（666p 与 888s 差 2）', ytFuOf(r, '双双逢'), 2);
+    });
+    ytT('覆盖·三双逢 4-6-8 形', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'z',55), winTile:'m1',
+                            melds: [ytMeld('pon','444p'), ytMeld('pon','666s'), ytMeld('pon','888m')] });
+        ytEq('三双逢 = 4 赋', ytFuOf(r, '三双逢'), 4);
     });
     ytT('覆盖·四归一 2 赋（含 4 张同牌）', () => {
-        // m111 + m123 共用第 4 张 m1 → 恰好 4 张，合法
+        // 111m + 123m 共用第 4 张 1m → 恰好 4 张，合法
         const r = ytCheck({ hand: ytBuild('m',111,'m',123,'p',567,'s',999,'z',11), winTile:'m1' });
         ytEq('四归一 = 2 赋', ytFuOf(r, '四归一'), 2);
     });
@@ -824,11 +856,11 @@ function ytDefineCases() {
         ytEq('三杠子 食降 = 4 赋', ytFuOf(r, '三杠子'), 4);
     });
     ytT('覆盖·南北自通 28 赋（南北通形 + 自摸 + 门风刻）', () => {
-        // 门风=南，手上 z222 三张 → 自通成立
+        // 门风=南，手上 222z 三张 → 自通成立
         const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44),
                             winTile:'z4', selfDraw:true, seatWind:'south' });
         ytEq('南北自通 = 28 赋', ytFuOf(r, '南北自通'), 28);
-        // 反例：门风=东时 z222 不算门风刻 → 只出南北通 14
+        // 反例：门风=东时 222z 不算门风刻 → 只出南北通 14
         const r2 = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44),
                              winTile:'z4', selfDraw:true, seatWind:'east' });
         ytEq('门风非南时不计南北自通', ytFuOf(r2, '南北自通'), 0);

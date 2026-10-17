@@ -73,6 +73,35 @@
     return null;
   }
 
+  // 三双逢主题：三花色、双数、相邻差 2 的刻子（如 222m + 444p + 666s）
+  function buildEvenPungs() {
+    var base = pick([2, 4]);                       // 2-4-6 或 4-6-8
+    var suits = SUITS.slice();
+    for (var i = suits.length - 1; i > 0; i--) {   // 洗牌取三花色
+      var j = ri(i + 1), tmp = suits[i]; suits[i] = suits[j]; suits[j] = tmp;
+    }
+    var melds = [
+      { type: 'pung', ids: [suits[0] + base, suits[0] + base, suits[0] + base] },
+      { type: 'pung', ids: [suits[1] + (base + 2), suits[1] + (base + 2), suits[1] + (base + 2)] },
+      { type: 'pung', ids: [suits[2] + (base + 4), suits[2] + (base + 4), suits[2] + (base + 4)] }
+    ];
+    var extra = randMeld();                        // 第 4 组面子
+    var pr = randTile();
+    var concealedIds = extra.ids.concat([pr, pr]);
+    var cnt = {};
+    function bump(id) { cnt[id] = (cnt[id] || 0) + 1; }
+    concealedIds.forEach(bump);
+    melds.forEach(function (m) { m.ids.forEach(bump); });
+    for (var key in cnt) if (cnt[key] > 4) return null;
+    return {
+      concealed: concealedIds.map(tile),
+      melds: melds.map(function (m2) {
+        return { type: m2.type, tiles: m2.ids.map(tile) };
+      }),
+      ankan: 0, minkan: 0
+    };
+  }
+
   // 带主题的整手：只从池里取，pung 优先（保证成形）
   function buildThemed(kind) {
     var concealedIds = [], melds = [];
@@ -135,6 +164,7 @@
       return { concealed: nine.map(tile), melds: [] };
     }
 
+    if (shape < 0.08) return buildEvenPungs();      // 三双逢主题
     if (shape < 0.16) {                             // 主题手：字一色/清老头/绿一色
       var kind = pick(['honors', 'terminals', 'green', 'honors']);
       return buildThemed(kind);

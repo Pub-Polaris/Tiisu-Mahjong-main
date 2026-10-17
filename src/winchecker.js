@@ -163,6 +163,38 @@ function _xyShape(hand, loNums) {
     for (const k of Object.keys(sc)) if (!loNums.includes(Number(k))) return false;
     return true;
 }
+// 双数刻子：{suit,num} 列表（排除字牌与奇数）
+function evenPungsOf(g) {
+    const out = [];
+    for (const x of (g || [])) {
+        if (x.type !== 'pung') continue;
+        const t = x.tiles[0];
+        if (t.suit === 'z') continue;
+        const n = Number(t.num);
+        if (n % 2 !== 0) continue;
+        out.push({ suit: t.suit, num: n });
+    }
+    return out;
+}
+// k 个「不同花色 / 双数 / 相邻差 2」的刻子
+//   k=2 → 双双逢；k=3 → 三双逢（2-4-6 或 4-6-8 这类）
+function hasConsecutiveEvenPungs(g, k) {
+    const ps = evenPungsOf(g);
+    for (let i = 0; i < ps.length; i++) {
+        for (let j = i + 1; j < ps.length; j++) {
+            if (ps[j].suit === ps[i].suit) continue;
+            if (Math.abs(ps[j].num - ps[i].num) !== 2) continue;
+            if (k === 2) return true;
+            for (let m = j + 1; m < ps.length; m++) {
+                if (ps[m].suit === ps[i].suit || ps[m].suit === ps[j].suit) continue;
+                const ns = [ps[i].num, ps[j].num, ps[m].num].sort((a, b) => a - b);
+                if (ns[1] - ns[0] === 2 && ns[2] - ns[1] === 2) return true;
+            }
+        }
+    }
+    return false;
+}
+
 function isLessThanSeven(hand) {
     // 1-6 区间的三连对：112233 / 223344 / 334455 / 445566
     for (const a of [1, 2, 3, 4]) {
@@ -554,8 +586,10 @@ class WinChecker {
             same_color_old_young:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');const bs={};for(let x of s){const su=x.tiles[0].suit;if(!bs[su])bs[su]=[];bs[su].push(x);}for(let su in bs){let h123=false,h789=false;for(let x of bs[su]){const ns=x.tiles.map(t=>t.num).sort((a,b)=>a-b);if(ns[0]===1&&ns[1]===2&&ns[2]===3)h123=true;if(ns[0]===7&&ns[1]===8&&ns[2]===9)h789=true;}if(h123&&h789)return true;}return false;},
             same_color_double_old_young:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');const bs={};for(let x of s){const su=x.tiles[0].suit;if(!bs[su])bs[su]=[];bs[su].push(x);}for(let su in bs){let c123=0,c789=0;for(let x of bs[su]){const ns=x.tiles.map(t=>t.num).sort((a,b)=>a-b);if(ns[0]===1&&ns[1]===2&&ns[2]===3)c123++;if(ns[0]===7&&ns[1]===8&&ns[2]===9)c789++;}if(c123>=2&&c789>=2)return true;}return false;},
             two_color_double_old_young:(h,g)=>{if(!g)return false;const s=g.filter(x=>x.type==='sequence');const s123=new Set(),s789=new Set();for(let x of s){const su=x.tiles[0].suit;const ns=x.tiles.map(t=>t.num).sort((a,b)=>a-b);if(ns[0]===1&&ns[1]===2&&ns[2]===3)s123.add(su);if(ns[0]===7&&ns[1]===8&&ns[2]===9)s789.add(su);}return s123.size>=2&&s789.size>=2;},
-            double_even_ko:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');const bs={};for(let x of p){const t=x.tiles[0];if(t.suit==='z'||t.num%2!==0)continue;if(!bs[t.suit])bs[t.suit]=[];bs[t.suit].push(t.num);}let f=0;for(let su in bs){const ns=bs[su].sort((a,b)=>a-b);for(let i=0;i<ns.length-1;i++)if(ns[i+1]-ns[i]===2){f++;break;}}return f>=2;},
-            triple_even_ko:(h,g)=>{if(!g)return false;const p=g.filter(x=>x.type==='pung');const bs={};for(let x of p){const t=x.tiles[0];if(t.suit==='z'||t.num%2!==0)continue;if(!bs[t.suit])bs[t.suit]=[];bs[t.suit].push(t.num);}let f=0;for(let su in bs){const ns=bs[su].sort((a,b)=>a-b);for(let i=0;i<ns.length-1;i++)if(ns[i+1]-ns[i]===2){f++;break;}}return f>=3;},
+            // 双双逢：2 种不同花色、双数、差 2 的刻子
+            double_even_ko:(h,g)=>{if(!g)return false;return hasConsecutiveEvenPungs(g,2);},
+            // 三双逢：3 种不同花色、双数、相邻差 2 的刻子（如 222m + 444p + 666s）
+            triple_even_ko:(h,g)=>{if(!g)return false;return hasConsecutiveEvenPungs(g,3);},
 // ── 小于七 / 大于七（北极星 2026-10-02 硬编码口径）──────────────────
 // 形状 = 一个花色的三连对 + 四对字牌 = 6 + 8 = 14 张。
 //   小于七：112233 / 223344 / 334455 / 445566（1-6 区的三连对）
