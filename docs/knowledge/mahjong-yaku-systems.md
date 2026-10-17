@@ -139,13 +139,13 @@ chantai  junchan  honroto  chiitoitsu  honitsu  chinitsu  shosangen  ...
 | `sashikomi` | Sashikomi |
 | `shosuushi` | Shousuushii |
 | `suuankou` | Suu Ankou |
-| `suuankou_tanki` | ERR |
-| `suukantsu` | ERR |
-| `tenhou` | ERR |
-| `tsuisou` | ERR |
+| `suuankou_tanki` | Suu Ankou Tanki（中文：四暗刻单骑） |
+| `suukantsu` | Suu Kantsu（中文：四杠子） |
+| `tenhou` | Tenhou（中文：天和） |
+| `tsuisou` | Tsuu Iisou（中文：字一色） |
 
-> 注：`suuankou_tanki` / `suukantsu` / `tenhou` / `tsuisou` 四个文件抓取失败（返回异常），
-> 已记录在 `sources.md`，下轮重试。
+> 注：`suuankou_tanki`（四暗刻单骑）/ `suukantsu`（四杠子）/ `tenhou`（天和）/ `tsuisou`（字一色）
+> 首轮抓取失败，2026-10-18 重试成功，已补入本表（共 **24 个役满**）。
 
 ## 3. 中庸麻将（Zung Jung，关兆豪）
 
@@ -331,7 +331,7 @@ chantai  junchan  honroto  chiitoitsu  honitsu  chinitsu  shosangen  ...
 | 项 | 状态 |
 |---|---|
 | 国标 81 番的**中文名 + 逐项分值** | ⚠️ 只有英文名（官方 PDF 文本层）；中文名需另找中文版规则或逐条对译 |
-| 日麻 4 个役满文件（suuankou_tanki / suukantsu / tenhou / tsuisou） | ⚠️ 抓取失败，待重试 |
+| 日麻 4 个役满文件（suuankou_tanki / suukantsu / tenhou / tsuisou） | ✅ 已重试成功，役满补齐 24 条 |
 | 中庸 44 番 | ✅ 已取得（含中文名与点数） |
 | 古典计分三表 | ✅ 已取得（Doubles / Mini Points / Bonus） |
 | 美国麻将、台湾麻将、广东麻将等 | ⏸ 未取（与本项目关系较远） |
