@@ -24,11 +24,11 @@
 | `dotnet10-csharp14.md` | .NET 10（LTS）与 C# 14 的可用特性、SDK 变化 |
 | `csharp-type-model.md` | C# 的类型建模手段（record / 抽象 record 层级 / 模式匹配）；**union 类型尚未进 C# 14** |
 | `testing-xunit-v3.md` | xUnit v3 的能力清单（数据驱动、动态跳过、MTP 等） |
-| `hosting-webview2.md` | 桌面外壳方案（WebView2）— 待补 |
-| `serialization-json.md` | System.Text.Json（含源生成）— 待补 |
+| `hosting-webview2.md` | 桌面外壳方案（WebView2）：能力、平台支持、分发方式 |
+| `serialization-json.md` | System.Text.Json 源生成（两种模式、AOT、枚举） |
 | `domain-mahjong.md` | 本项目领域知识（役种数量、两套机制、踩过的口径） |
 | `mahjong-basics.md` | **麻将基本结构**：牌/顺刻杠/将/和牌形态/术语（MCR 官方定义），以及七子特有约定 |
-| `mahjong-yaku-systems.md` | **国标/日麻/中庸/古典 的役种体系**，以及与七子的差异对照（中庸/古典待补） |
+| `mahjong-yaku-systems.md` | **国标（81 番中文全表）/日麻（43 役+24 役满）/中庸（44 番）/古典（四张计分表）**，及与七子的差异对照 |
 
 ## 维护规则
 

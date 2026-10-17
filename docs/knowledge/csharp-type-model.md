@@ -43,7 +43,24 @@ string Describe(Meld m) => m switch {
 4. **役**用 `IYaku` 接口 + 每役一个 `sealed class`，`Matches(HandView)` 内部用 `switch`/LINQ 表达模式。
 5. 需要"多解拆牌"时，用 `IEnumerable<HandShape>` 返回全部解，而不是改全局状态。
 
-## 待补
+## union 类型的当前状态（2026-10-18 核实）
 
-- 官方 union 提案的**当前阶段**（LDM 是否已采纳、目标语言版本）—— `sources.md` 里标了待读。
-  在确认之前，**不要**在设计里假设 union 可用。
+**来源**：[C# 15 Unions — NDepend Blog](https://blog.ndepend.com/csharp-unions/)（2026-05-25，含 2026-04 更新）
+
+| 事实 | 内容 |
+|---|---|
+| 归属版本 | **C# 15 / .NET 11**，GA 预计 **2026 年 11 月** |
+| 预览状态 | 已在 **.NET 11 Preview 2（2026-04）** 落地 |
+| 语法 | `public union Pet (Dog, Cat, Bird);` —— 组合已有类型，不需要公共基类/接口 |
+| 匹配 | **穷尽性由编译器强制**（无 `default` 分支） |
+| 底层 | `record struct` 持有一个 `object? Value`；**值类型会装箱** |
+| 依赖 | `UnionAttribute` / `IUnion` 在 `System.Runtime.CompilerServices`，.NET 11 Preview 4 时**尚未进 BCL**，需自己声明 |
+| 试用方式 | 仍可 `TargetFramework=net10.0` + `<LangVersion>preview</LangVersion>` |
+
+### 对本项目的结论
+
+- 我们固定 `net10.0`（**C# 14**），**union 不是可用特性** → 面子类型继续用 `abstract record` + `sealed` 派生。
+- `union` 的**穷尽性检查**确实是我们最想要的东西（现在只能靠 `_ => throw` 兜底），
+  但升级到 C# 15 意味着换 TFM 到 `net11.0`，会牵动整个解决方案 → **留到 M4 之后再评估**。
+- 若将来只用它表达"面子"这一处，代价可控；不建议在全项目铺开（值类型装箱）。
+

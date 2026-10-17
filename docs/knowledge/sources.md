@@ -1,31 +1,38 @@
 # 来源清单
 
-> 只登记实际读过、并据以写条目的来源。状态：`已读` / `待读`。
+> 只登记**实际读过**并据以写条目的来源。状态：`已读` / `不可得（原因）`。
+
+## 一、.NET / 工具链
 
 | 抓取日期 | 来源 | 级别 | 状态 | 用于 |
 |---|---|---|---|---|
 | 2026-10-18 | [What's new in .NET 10 — Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-10/overview) | 官方 | 已读 | `dotnet10-csharp14.md` |
-| 2026-10-18 | [What's New in xUnit.net v3 — xunit.net](https://xunit.net/docs/getting-started/v3/whats-new) | 官方 | 已读 | `testing-xunit-v3.md` |
-| — | [WebView2 — Microsoft Learn](https://learn.microsoft.com/en-us/microsoft-edge/webview2/) | 官方 | 待读 | `hosting-webview2.md` |
-| — | [System.Text.Json 源生成 — Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation) | 官方 | 待读 | `serialization-json.md` |
-| — | [C# 语言提案仓库（csharplang）](https://github.com/dotnet/csharplang/tree/main/proposals) | 官方 | 待读 | `csharp-type-model.md` 的 union 状态 |
+| 2026-10-18 | [What's New in xUnit.net v3](https://xunit.net/docs/getting-started/v3/whats-new) | 官方 | 已读 | `testing-xunit-v3.md` |
+| 2026-10-18 | [System.Text.Json 源生成](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation) | 官方 | 已读 | `serialization-json.md` |
+| 2026-10-18 | [Introduction to WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/) | 官方 | 已读 | `hosting-webview2.md` |
+| 2026-10-18 | [C# 15 Unions — NDepend Blog](https://blog.ndepend.com/csharp-unions/) | 一手社区 | 已读 | `csharp-type-model.md` 的 union 状态 |
 
-> **本机网络事实**：本机跑着**本地反向代理**，部分域名（如 `raw.githubusercontent.com`）解析到内网 IP，`web_fetch` 会报 `resolves to a non-public IP address`。这不是故障；抓 GitHub 原始文件请改用 `github.com` 网页版或官方站点，且**不要反复重试同一 URL**。
-
-## 麻将规则体系（2026-10-18）
+## 二、麻将规则体系
 
 | 抓取日期 | 来源 | 级别 | 状态 | 用于 |
 |---|---|---|---|---|
-| 2026-10-18 | [MCR 官方规则 PDF（mindmahjong.com）](http://www.mindmahjong.com/adobe/MCR201408e.pdf) | 官方 | **已读**（38 页，文本层可提取） | `mahjong-yaku-systems.md` 国标部分 |
-| 2026-10-18 | [MahjongRepository/mahjong（MIT）](https://github.com/MahjongRepository/mahjong) | 一手开源 | **已读**（役列表目录 45 项） | 同上，日麻部分 |
-| — | 百度百科「中庸麻雀」 | 百科 | ❌ HTTP 403 | 中庸部分被阻塞 |
-| — | 萌娘百科「麻将/番种」 | 百科 | ❌ WAF（`action=raw` 也 403） | — |
-| — | 中文维基 / 日文维基 | 百科 | ❌ 域名被本机反代解析为内网 IP | — |
-| — | wikiwand 镜像 | 镜像 | ❌ 超时 | — |
+| 2026-10-18 | [MCR 官方规则 PDF（英文）](http://www.mindmahjong.com/adobe/MCR201408e.pdf) | 官方 | 已读（38 页） | `mahjong-yaku-systems.md` 国标 |
+| 2026-10-18 | [MCR 官方规则 PDF（中文）](http://www.mindmahjong.com/adobe/MCR2021.pdf) | 官方 | 已读（112 页，中文文本层） | 国标 **81 番中文名 + 分值** |
+| 2026-10-18 | [MahjongRepository/mahjong](https://github.com/MahjongRepository/mahjong)（MIT） | 一手开源 | 已读（43 役 + 24 役满） | 日麻役种全表 |
+| 2026-10-18 | [Mahjong Wiki · Zung Jung Scoring](https://mahjong.wikidot.com/rules:zung-jung-scoring) | 社区 Wiki（CC BY-SA） | 已读 | 中庸 44 番种 |
+| 2026-10-18 | [Mahjong Wiki · Chinese Classical Scoring](https://mahjong.wikidot.com/rules:chinese-classical-scoring) | 社区 Wiki（CC BY-SA） | 已读 | 古典四张计分表 |
+| 2026-10-18 | [Mahjong Wiki 首页](https://mahjong.wikidot.com/) | 社区 Wiki（CC BY-SA） | 已读 | 规则集索引与 pattern 页 |
+| 2026-10-18 | [国标 81 番（中文表）](http://www.mindmahjong.com/adobe/MCR2021.pdf) | 官方 | 已读 | `mahjong-basics.md` 术语（3.4 节） |
 
-> **可用通道**（实测）：官方 PDF、GitHub API、jsDelivr CDN（`cdn.jsdelivr.net`）、少数直连站点。
-> **不可用**：百度百科、萌娘百科、维基系、wikiwand。
-| 2026-10-18 | 同上（`yaku_list/*.py` 逐文件） | 一手开源 | **已读 43 役 + 24 役满**（首轮 4 个失败，重试成功：suuankou_tanki / suukantsu / tenhou / tsuisou） | 日麻役种全表 |
-| 2026-10-18 | [Mahjong Wiki · Zung Jung Scoring](https://mahjong.wikidot.com/rules:zung-jung-scoring) | 社区 Wiki（CC BY-SA） | **已读** | 中庸 44 番种表 |
-| 2026-10-18 | [Mahjong Wiki · Chinese Classical Scoring](https://mahjong.wikidot.com/rules:chinese-classical-scoring) | 社区 Wiki（CC BY-SA） | **已读** | 古典三张计分表 |
-| 2026-10-18 | [Mahjong Wiki 首页 / List of Patterns](https://mahjong.wikidot.com/) | 社区 Wiki（CC BY-SA） | **已读** | 索引与跨体系 pattern 页 |
+## 三、不可得（附原因，供后续绕行）
+
+| 源 | 结果 |
+|---|---|
+| 百度百科（中庸麻雀 / 世界麻将大赛规则） | HTTP 403 安全验证 |
+| 萌娘百科「麻将/番种」 | WAF（`action=raw` 也返回未授权） |
+| 中文维基 / 日文维基 | 域名被本机**本地反向代理**解析为内网 IP |
+| wikiwand 镜像 | 连接超时 |
+
+> **可用通道**（实测）：官方 PDF、GitHub API、jsDelivr CDN、`mahjong.wikidot.com`、少数直连站点。
+> **本机网络事实**：跑着本地反向代理，部分域名（如 `raw.githubusercontent.com`）解析到内网 IP，
+> `web_fetch` 报 `resolves to a non-public IP address`。这不是故障，改用 `github.com` 网页版或官方站点，别反复重试。
