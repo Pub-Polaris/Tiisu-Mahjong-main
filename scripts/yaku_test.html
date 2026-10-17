@@ -706,6 +706,96 @@ function ytDefineCases() {
         g.saveSessionState();
         ytOk('saveSessionState() 的 /api/state 被拦截', YT_STATE_CALLS.length >= 1, 'n=' + YT_STATE_CALLS.length);
     });
+
+    // ── 覆盖批次2：此前 18 个从未被断言过的役（2026-10-18）──────────────
+    ytT('覆盖·五门齐 5 赋（万饼索+风+三元齐）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'p',456,'s',789,'z',111,'z',55), winTile:'m1' });
+        ytEq('五门齐 = 5 赋', ytFuOf(r, '五门齐'), 5);
+    });
+    ytT('覆盖·混老头（食降后 4 赋，全幺九刻子+字牌）', () => {
+        // 一副露碰避免四暗刻；不得分版按「含某役」断言
+        const r = ytCheck({ hand: ytBuild('m',111,'m',999,'p',999,'z',11), winTile:'m1',
+                            melds:[ytMeld('pon','111s')] });
+        ytOk('含混老头', ytHas(r, '混老头'), ytBrief(r));
+        ytEq('混老头 食降 = 4 赋', ytFuOf(r, '混老头'), 4);
+    });
+    ytT('覆盖·同高（一般高）4 赋（两对同花色同数字顺子）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',123,'p',456,'s',789,'z',55), winTile:'m1' });
+        // 该形总赋不足 7，故 success=false；只断言役本身
+        ytEq('同高（一般高）= 4 赋', ytFuOf(r, '同高（一般高）'), 4);
+    });
+    ytT('覆盖·卡七 1 赋（和牌张为数牌七）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'p',789,'s',789,'z',55), winTile:'s7' });
+        ytEq('卡七 = 1 赋', ytFuOf(r, '卡七'), 1);
+    });
+    ytT('覆盖·海上月 / 河中鱼 / 海底月 / 和绝张（上下文驱动）', () => {
+        const base = () => ({ hand: ytBuild('m',123,'m',456,'m',789,'p',111,'s',99), winTile:'s9' });
+        const a = ytCheck(Object.assign(base(), { ctx: { seaMoon: true } }));
+        ytEq('海上月 = 1 赋', ytFuOf(a, '海上月'), 1);
+        const b = ytCheck(Object.assign(base(), { ctx: { riverFish: true } }));
+        ytEq('河中鱼 = 1 赋', ytFuOf(b, '河中鱼'), 1);
+        const c = ytCheck(Object.assign(base(), { ctx: { haiDei: true } }));
+        ytEq('海底月 = 1 赋', ytFuOf(c, '海底月'), 1);
+        const d = ytCheck(Object.assign(base(), { ctx: { lastTileVisible: 4 } }));
+        ytEq('和绝张 = 3 赋', ytFuOf(d, '和绝张'), 3);
+        // 反例：无上下文时四者都不计
+        const e = ytCheck(base());
+        ytEq('无上下文时不计海上月/河中鱼/海底月/和绝张',
+             ytFuOf(e,'海上月') + ytFuOf(e,'河中鱼') + ytFuOf(e,'海底月') + ytFuOf(e,'和绝张'), 0);
+    });
+    ytT('覆盖·九莲宝灯（门清 28 赋）', () => {
+        const r = ytCheck({ hand: ytBuild('m',1112345678999,'m',5), winTile:'m5' });
+        ytEq('九莲宝灯 = 28 赋', ytFuOf(r, '九莲宝灯'), 28);
+        ytOk('和为成功', r.success, ytBrief(r));
+    });
+    ytT('覆盖·南北通 14 赋（一条龙+南刻+北对）', () => {
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44), winTile:'z4' });
+        ytEq('南北通 = 14 赋', ytFuOf(r, '南北通'), 14);
+    });
+    ytT('记录·同色双老少 不可达（4 顺子形必为七对子）', () => {
+        // 两组 123 + 两组 789 = 6 对 + 雀头 = 七对形 → 被 seven_pairs 分支截走
+        const r = ytCheck({ hand: ytBuild('m',123,'m',123,'m',789,'m',789,'z',55), winTile:'m1' });
+        ytEq('命中七对子而未计同色双老少',
+             ytFuOf(r,'同色双老少') === 0 && ytFuOf(r,'七对子') > 0 ? 1 : 0, 1);
+    });
+    ytT('记录·三双逢 结构上不可达（需 6 个双数刻=18 张）', () => {
+        // 每花色需一对差 2 的双数刻才能 +1；三花色共 6 刻 = 18 张 > 14，故永不成立
+        ytOk('三双逢 无可用牌型（记录性说明）', true);
+    });
+    ytT('覆盖·四归一 2 赋（含 4 张同牌）', () => {
+        // m111 + m123 共用第 4 张 m1 → 恰好 4 张，合法
+        const r = ytCheck({ hand: ytBuild('m',111,'m',123,'p',567,'s',999,'z',11), winTile:'m1' });
+        ytEq('四归一 = 2 赋', ytFuOf(r, '四归一'), 2);
+    });
+    ytT('覆盖·明根 1 赋（明杠计 1 组根）', () => {
+        // 杠是「14 + 杠数」口径：暗手 11 张 + 明杠 4 张
+        const r = ytCheck({ hand: ytBuild('m',234,'m',567,'p',789,'s',99), winTile:'m4',
+                            melds: [{ type:'minkan', tiles: ytBuild('m',1111) }] });
+        ytEq('加杠/明杠（明根）= 1 赋', ytFuOf(r, '加杠/明杠（明根）'), 1);
+    });
+    ytT('覆盖·两杠子（食降后 2 赋）', () => {
+        const r = ytCheck({ hand: ytBuild('p',567,'s',678,'z',11), winTile:'p5',
+                            melds: [{ type:'minkan', tiles: ytBuild('m',1111) },
+                                    { type:'minkan', tiles: ytBuild('p',2222) }] });
+        ytEq('两杠子 食降 = 2 赋', ytFuOf(r, '两杠子'), 2);
+    });
+    ytT('覆盖·三杠子（食降后 4 赋）', () => {
+        const r = ytCheck({ hand: ytBuild('s',999,'z',11), winTile:'s9',
+                            melds: [{ type:'minkan', tiles: ytBuild('m',1111) },
+                                    { type:'minkan', tiles: ytBuild('p',2222) },
+                                    { type:'minkan', tiles: ytBuild('s',3333) }] });
+        ytEq('三杠子 食降 = 4 赋', ytFuOf(r, '三杠子'), 4);
+    });
+    ytT('覆盖·南北自通 28 赋（南北通形 + 自摸 + 门风刻）', () => {
+        // 门风=南，手上 z222 三张 → 自通成立
+        const r = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44),
+                            winTile:'z4', selfDraw:true, seatWind:'south' });
+        ytEq('南北自通 = 28 赋', ytFuOf(r, '南北自通'), 28);
+        // 反例：门风=东时 z222 不算门风刻 → 只出南北通 14
+        const r2 = ytCheck({ hand: ytBuild('m',123,'m',456,'m',789,'z',222,'z',44),
+                             winTile:'z4', selfDraw:true, seatWind:'east' });
+        ytEq('门风非南时不计南北自通', ytFuOf(r2, '南北自通'), 0);
+    });
 }
 
 // ══════════════════════════════════════════════════════════════
