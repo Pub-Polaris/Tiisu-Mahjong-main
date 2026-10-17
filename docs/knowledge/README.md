@@ -27,6 +27,7 @@
 | `hosting-webview2.md` | 桌面外壳方案（WebView2）— 待补 |
 | `serialization-json.md` | System.Text.Json（含源生成）— 待补 |
 | `domain-mahjong.md` | 本项目领域知识（役种数量、两套机制、踩过的口径） |
+| `mahjong-basics.md` | **麻将基本结构**：牌/顺刻杠/将/和牌形态/术语（MCR 官方定义），以及七子特有约定 |
 | `mahjong-yaku-systems.md` | **国标/日麻/中庸/古典 的役种体系**，以及与七子的差异对照（中庸/古典待补） |
 
 ## 维护规则

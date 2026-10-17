@@ -708,6 +708,36 @@ function ytDefineCases() {
     // ══════ 13. 役满专项（优先权链）══════
     // 说明：多个役满同时成立时，按 ike.json#highYaku 的顺序取【第一个】。
     //       因此部分役满在实际牌型里会被更靠前的役满截走（见下方"被覆盖"两条）。
+    ytT('三七之花 · 正例：777m 777p 777s + 222z + 44z（自摸=双役满 70000）', () => {
+        // 三个 777 全暗 + 第 4 刻子（南）+ 雀头（北北）都是允许牌 → 成立
+        const hand = ytBuild('m',777,'p',777,'s',777,'z',222,'z',44);
+        const r = ytCheck({ hand, selfDraw:true, winTile:'m7' });
+        ytOk('含三七之花', ytHas(r, '三七之花'), ytNames(r));
+        ytEq('自摸 = 双役满 70000', r.specialPoints, 70000);
+    });
+    ytT('三七之花 · 荣和 = 单役满 35000', () => {
+        const hand = ytBuild('m',777,'p',777,'s',777,'z',222,'z',44);
+        const r = ytCheck({ hand, selfDraw:false, winTile:'m7' });
+        ytOk('含三七之花', ytHas(r, '三七之花'), ytNames(r));
+        ytEq('荣和 = 单役满 35000', r.specialPoints, 35000);
+    });
+    ytT('三七之花 · 允许 1/5/9：777m 777p 777s + 555m + 11z', () => {
+        const hand = ytBuild('m',777,'p',777,'s',777,'m',555,'z',11);
+        const r = ytCheck({ hand, selfDraw:false, winTile:'m7' });
+        ytOk('含三七之花', ytHas(r, '三七之花'), ytNames(r));
+    });
+    ytT('三七之花 · 反例：碰出去的 777 不算（必须全暗）', () => {
+        // 手上只有 777p 777s + 222z + 555m + 44z，另一个 777m 是碰
+        const hand = ytBuild('p',777,'s',777,'z',222,'m',555,'z',44);
+        const r = ytCheck({ hand, selfDraw:false, winTile:'p7',
+                            melds: [ytMeld('pon','777m')] });
+        ytOk('不含三七之花', !ytHas(r, '三七之花'), ytNames(r));
+    });
+    ytT('三七之花 · 反例：第 4 面子含 2（123m）不成立', () => {
+        const hand = ytBuild('m',777,'p',777,'s',777,'m',123,'z',44);
+        const r = ytCheck({ hand, selfDraw:true, winTile:'m7' });
+        ytOk('不含三七之花', !ytHas(r, '三七之花'), ytNames(r));
+    });
     ytT('三七之花 · 反例：缺一个花色的 7 刻则不成立（被四暗刻截走）', () => {
         const r = ytCheck({ hand: ytBuild('m',777,'p',777,'s',888,'z',555,'s',11),
                             selfDraw:true, winTile:'s8' });

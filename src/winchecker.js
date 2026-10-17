@@ -885,21 +885,23 @@ greater_than_seven:h=>isGreaterThanSeven(h),
     // 三种花色的 7 各一组刻子（777m 777p 777s）+ 三元/四风/1/9 组成的雀头或面子
     isThreeSevenFlower(hand, groups) {
         if (!hand) return false;
-        const m = countTiles(hand);
-        if ((m.get('m7') || 0) < 3 || (m.get('p7') || 0) < 3 || (m.get('s7') || 0) < 3) return false;
-        const rest = hand.filter(t => {
-            if (t.suit === 'z') return t.num >= 5 && t.num <= 7;            // 三元
-            if (t.num === 7) return false;                                  // 已被三组刻子用掉
-            if (t.num === 1 || t.num === 9) return true;                    // 1/9
+        // 三个 777 必须全暗：从【暗手】取数（conditionFn 收到的 hand 是全手），
+        // 且副露里不能出现任何 7（否则那一组 777 是碰出去的）。
+        const concealed = this._concealedHand || [];
+        const cm = countTiles(concealed);
+        if ((cm.get('m7') || 0) < 3 || (cm.get('p7') || 0) < 3 || (cm.get('s7') || 0) < 3) return false;
+        for (const g of (this._melds || [])) {
+            for (const t of g.tiles) if (t.suit !== 'z' && Number(t.num) === 7) return false;
+        }
+        // 余下 5 张（全手去掉三组 777）= 第 4 刻子 + 雀头，
+        // 须全部是「三元 / 四风 / 1、5、9 数牌」；第 4 面子为刻子、雀头同牌由成牌结构保证。
+        const rest = hand.filter(t => !(t.suit !== 'z' && Number(t.num) === 7));
+        if (rest.length !== 5) return false;
+        for (const t of rest) {
+            if (t.suit === 'z') continue;                    // 三元（5z-7z）+ 四风（1z-4z）
+            const n = Number(t.num);
+            if (n === 1 || n === 5 || n === 9) continue;     // 一、五、九
             return false;
-        });
-        // 剩下 5 张须是"三元/四风/1/9"，且不能是其他牌
-        const others = hand.filter(t => !((t.suit==='m'||t.suit==='p'||t.suit==='s') && t.num===7));
-        if (others.length !== 5) return false;
-        for (const t of others) {
-            const okHonor = (t.suit === 'z');
-            const okTerm = (t.suit !== 'z' && (t.num === 1 || t.num === 9));
-            if (!okHonor && !okTerm) return false;
         }
         return true;
     }
