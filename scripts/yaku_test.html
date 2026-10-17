@@ -415,6 +415,14 @@ function ytDefineCases() {
         ytEq('3 副露不含全碰刻', ytFuOf(r, '全碰刻'), 0);
         ytOk('3 副露不含全食顺', !ytHas(r, '全食顺'), ytNames(r));
     });
+    ytT('覆盖·全碰刻 2 赋（4 个副露碰 + 雀头，过 7 赋门槛）', () => {
+        // 111m 999m 111p 999p 全碰 + 55s 雀头 → 混老头 5 + 对对和 3 + 全碰刻 2 = 10 赋（≥7）
+        const r = ytCheck({ hand: ytBuild('s',55), winTile:'s5',
+                            melds: [ytMeld('pon','111m'), ytMeld('pon','999m'),
+                                    ytMeld('pon','111p'), ytMeld('pon','999p')] });
+        ytOk('和牌成立', r.success, ytBrief(r));
+        ytEq('全碰刻 = 2 赋', ytFuOf(r, '全碰刻'), 2);
+    });
     ytT('全食顺/全碰刻 在混合副露时不成立', () => {
         const r = ytCheck({ hand: ytBuild('m',55), selfDraw:false, winTile:'m5',
             melds:[ytMeld('chi','123m'), ytMeld('chi','456m'), ytMeld('pon','z1'), ytMeld('pon','z2')] });

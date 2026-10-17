@@ -39,7 +39,7 @@
 
 ## 现有验证资产
 
-- `Web/scripts/yaku_test.html`：**87 用例 / 202 断言**（浏览器内跑）
+- `Web/scripts/yaku_test.html`：**98 用例 / 219 断言**（浏览器内跑）
 - `Web/scripts/engine_test.html`：18 用例 / 73 断言
 - 迁移时以 JS 为 **oracle**：golden 由 JS 生成，C# 逐字段对比，0 差异才算过。
 
@@ -47,8 +47,9 @@
 
 - 生成器：`Web/scripts/gen_golden.py`（无头 Edge 打开 `scripts/yaku_test.html?golden=1`）。
 - 原理：测试页在 `?golden=1` 时给 `checkWin` 包一层，记录**每次调用的输入与结果**；
-  因此语料与现有 87 用例 / 202 断言**天然同步**，不需要单独维护一份用例。
-- 产物：`NET/tests/fixtures/yaku-golden.json`（当前 102 条引擎调用，92 成功 / 10 失败）。
+  因此语料与现有 98 用例 / 219 断言**天然同步**，不需要单独维护一份用例。
+- 产物：`NET/tests/fixtures/yaku-golden.json`（当前 **114** 条引擎调用） 与 `yaku-golden-random.json`（**10000** 条构造式随机手，种子 `20261018`）。
+- 并集覆盖 **69/70** 役；唯一未覆盖 `同色双老少`（结构不可达）。
 - 字段：`hand[] / melds[] / selfDraw / hasCalled / ankan / minkan / firstTurn / winTile / ctx`
   + `result{success, reason, totalFu, handType, yaku[], specialPoints, sevenHonors}`。
 - 重新生成：改了 JS 判役后必须重跑，并把新 JSON 提交到 C# 仓库（它是 C# 的验收基准）。

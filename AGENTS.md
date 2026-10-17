@@ -8,7 +8,7 @@ Four-player Mahjong variant with its own yaku set and "Fu-based" scoring. Pure f
 
 > **摘要**：本项目是自创规则的四人麻将实现。本文件是给自动化编码 agent 的项目契约：环境、地图、命令、验收标准与红线。
 > **面向**：所有在本仓库工作的 agent（opencode、Deepseek Harness / DSH）。
-> **基线**：代码 `E:\工程文件\TiisuMahjong\Web`，文档版本 `261002-33`（2026-10-18），对应备份 `backup_20261018_041400.tar.gz`。
+> **基线**：代码 `E:\工程文件\TiisuMahjong\Web`，文档版本 `261002-34`（2026-10-18），对应备份 `backup_20261018_042104.tar.gz`。
 
 ## 零、任务执行铁律
 
@@ -111,7 +111,7 @@ python E:\工程文件\TiisuMahjong\Web\scripts\run_all.py --runs 2
 
 | 步骤 | 页面/脚本 | 内容 |
 |---|---|---|
-| 1 | `scripts/yaku_test.html` | 役种 / 赋 / 点数断言（87 用例 · 202 断言） |
+| 1 | `scripts/yaku_test.html` | 役种 / 赋 / 点数断言（99 用例 · 221 断言） |
 | 2 | `scripts/engine_test.html` | 引擎规则断言（18 用例 · 73 断言：牌山 / 场次 / 流局 / 十三不靠 / 多和 / 出岭 / 拔厄 / 赐马 / 统一流局按钮渲染 / 终局「只补一手」延长） |
 | 3 | `index.html?auto=1&mode=4` | N 局全自动，断言无 JS 报错且回合已渲染 |
 
@@ -253,7 +253,7 @@ python E:\工程文件\TiisuMahjong\Web\scripts\run_all.py --runs 2      # 或 c
 
 | 步骤 | 断言内容 |
 |---|---|
-| yaku | `scripts/yaku_test.html`：87 用例 / 202 断言（役种、赋、点数、赐马、全带赤、南北通 +7000、水滴石破、国士两特例、大七星、美人七对、小于七/大于七、驷马越岭、四明杠、连庄奖励、段位点、测试隔离） |
+| yaku | `scripts/yaku_test.html`：99 用例 / 221 断言（役种、赋、点数、赐马、全带赤、南北通 +7000、水滴石破、国士两特例、大七星、美人七对、小于七/大于七、驷马越岭、四明杠、连庄奖励、段位点、测试隔离） |
 | engine | `scripts/engine_test.html`：18 用例 / 73 断言（牌山模型 C、场次初始点数与终局场风、门风轮转、四风连打、三家和流局、十三不靠、双和子跳庄、出岭、大七星直接获胜+回门户钩子+统计不落盘、拔厄、未听返杠、连庄奖励、赐马口径、统一流局按钮渲染、终局「只补一手」延长） |
 | smoke | `index.html?auto=1&mode=4` 连跑 N 局：无 JS 报错 + 回合已渲染 |
 
