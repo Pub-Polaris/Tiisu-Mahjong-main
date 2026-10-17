@@ -117,6 +117,7 @@
 | 2026-10-18 02:1x | `dsh` | `（本条）` | **仓库目录改名 Playground → Tiisu_Mahjong_WEB**（CHANGELOG `261002-21`）：停止 `server.py` 占用后重命名目录（NAS 上 `<NAS>\Vol3\Playground` → `...\Tiisu_Mahjong_WEB`）；补 git `safe.directory` 两条；同步 19 个操作性文件的 50 处路径引用；历史文件（CHANGELOG 旧条目/ARCHIVE/契约归档/规则书原文）按约定保留原写法；验收 `Root: E:\工程文件\TiisuMahjong\Web` 全绿 | 留给 opencode：**你本地的路径/快捷方式/脚本都要改**；另 `CHANGELOG` 旧条目里的 `P:\Playground` 是有意的历史证据，别批量改 |
 | 2026-10-18 02:4x | `dsh` | `（本条）` | **NAS → 本地 E: 盘迁移 + 脱敏回退修复**（CHANGELOG `261002-22`）：权威副本改为 `E:\工程文件\TiisuMahjong\Web`（`Web` = 原 HTML/CSS/JS 版；`Dot_NET` 另放 C#）；20 个操作性文件 53 处路径引用改为 E: 盘；NAS 特有告警（AMSI/dubious ownership/网络抖动）改写为历史说明；**修掉我 `261002-21` 引入的脱敏回退**（3 处 NAS 主机名 → `<NAS>`） | 留给 opencode：**权威副本在 E:，NAS 那份已落后**；提交一律从 E: 推 |
 | 2026-10-18 03:0x | `dsh` | `（本条）` | **知识库 + DSH 工具章节 + .NET 骨架**（CHANGELOG `261002-23`）：新建 `docs/knowledge/`（6 主题 + `sources.md`，每条带来源 URL 与抓取日期）；`AGENTS.md` 新增第十节「使用 DSH 自带工具」；`E:\...\TiisuMahjong\NET` 建 solution（net10.0，SDK 固定 10.0.402） | 留给 opencode：**`NET` 目录目前无版本控制**；另 C# 项目的 `global.json` 固定了 10.0.402，别改成别的 |
+| 2026-10-18 03:2x | `dsh` | `（本条）` | **更正「非公网 IP」归因**（CHANGELOG `261002-24`）：真因是北极星本机**本地反向代理**，不是网络策略；已写进全局 `~/.dsh/AGENTS.md`（新章节）、项目 `AGENTS.md` 10.3、`docs/knowledge/sources.md`；处理方式=不重试、改用网页版、必要时反代透传 | 留给 opencode：**遇到取不到的 URL，先想"是不是本机反代"，别归因网络策略** |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `261002-23`（2026-10-18） · 对应备份 `backup_20261018_025427.tar.gz`
+> 页脚：文档版本 `261002-24`（2026-10-18） · 对应备份 `backup_20261018_025647.tar.gz`

@@ -10,4 +10,4 @@
 | — | [System.Text.Json 源生成 — Microsoft Learn](https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation) | 官方 | 待读 | `serialization-json.md` |
 | — | [C# 语言提案仓库（csharplang）](https://github.com/dotnet/csharplang/tree/main/proposals) | 官方 | 待读 | `csharp-type-model.md` 的 union 状态 |
 
-> `raw.githubusercontent.com` 在本机被网络策略拒绝（非公网 IP），抓 GitHub 原始文件请改用 `github.com` 网页或官方站点。
+> **本机网络事实**：本机跑着**本地反向代理**，部分域名（如 `raw.githubusercontent.com`）解析到内网 IP，`web_fetch` 会报 `resolves to a non-public IP address`。这不是故障；抓 GitHub 原始文件请改用 `github.com` 网页版或官方站点，且**不要反复重试同一 URL**。
