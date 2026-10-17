@@ -928,9 +928,11 @@ function ytDefineCases() {
             YT.golden = [];
             const _cw = YT.checker.checkWin.bind(YT.checker);
             YT.checker.checkWin = function (hand, selfDraw, hasCalled, ankan, minkan, melds, draw, firstTurn, dora, winTile, ctx) {
+                const _ts = YT.checker.maxSplit;      // 记录本次调用时的开关（对照用例会临时关掉）
                 const res = _cw.apply(null, arguments);
                 try {
                     YT.golden.push({
+                        maxSplit: _ts,
                         hand: (hand || []).map(function (t) { return t.id; }),
                         melds: (melds || []).map(function (m) {
                             return { type: m.type, tiles: m.tiles.map(function (t) { return t.id; }) };
