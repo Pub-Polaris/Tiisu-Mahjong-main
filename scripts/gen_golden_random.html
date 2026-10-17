@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>golden random</title></head>
+<body><pre id="o">running</pre>
+<script src="/src/tiles.js"></script><script src="/src/notation.js"></script>
+<script src="/src/winchecker.js"></script><script src="/src/engine.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// 构造式随机语料生成器
+//   /scripts/gen_golden_random.html?n=3000&seed=20261018
+// 生成「合法和牌手」，而不是随机撒 14 张：
+//   标准形 = 副露若干 + 暗手(need 面子 + 雀头)
+//   另含 七对子 / 国士 / 九莲 特殊形
+// 输出与 yaku_test.html 的 ?golden=1 同构，供 C# 逐字段对比。
+// ══════════════════════════════════════════════════════════════
+(function () {
+  var q = new URLSearchParams(location.search);
+  var N = parseInt(q.get('n') || '3000', 10);
+  var SEED = parseInt(q.get('seed') || '20261018', 10);
+
+  function mk(seed) {                     // mulberry32（可复现）
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  var rnd = mk(SEED);
+  function ri(n) { return Math.floor(rnd() * n); }
+  function pick(a) { return a[ri(a.length)]; }
+
+  var SUITS = ['m', 'p', 's'];
+  var HONORS = ['z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7'];
+  function tile(id) {
+    return id[0] === 'z' ? { suit: 'z', num: id.slice(1), id: id }
+                         : { suit: id[0], num: parseInt(id.slice(1), 10), id: id };
+  }
+  function randMeld() {                   // 返回 {type, ids[3]}
+    var r = rnd();
+    if (r < 0.68) {
+      var s = pick(SUITS), n = 1 + ri(7);
+      return { type: 'sequence', ids: [s + n, s + (n + 1), s + (n + 2)] };
+    }
+    if (r < 0.90) {
+      var s2 = pick(SUITS), n2 = 1 + ri(9);
+      return { type: 'pung', ids: [s2 + n2, s2 + n2, s2 + n2] };
+    }
+    var h = pick(HONORS);
+    return { type: 'pung', ids: [h, h, h] };
+  }
+  function randTile() {
+    return rnd() < 0.85 ? pick(SUITS) + (1 + ri(9)) : pick(HONORS);
+  }
+
+  // ── 主题牌池：用来覆盖 字一色/清老头/绿一色/混一色 这类需要限定牌的手 ----------
+  var GREEN = ['s2', 's3', 's4', 's6', 's8', 'z6'];
+  var TERMINALS = ['m1', 'm9', 'p1', 'p9', 's1', 's9'];
+  function themedMeld(kind) {           // 返回 {type,ids} 或 null
+    if (kind === 'honors') { var h = pick(HONORS); return { type: 'pung', ids: [h, h, h] }; }
+    if (kind === 'terminals') { var t = pick(TERMINALS); return { type: 'pung', ids: [t, t, t] }; }
+    if (kind === 'green') {
+      if (rnd() < 0.5) { var g = pick(GREEN); return { type: 'pung', ids: [g, g, g] }; }
+      var start = pick([2, 3, 4]);       // s2s3s4 / s3s4s5(无) → 只用 s2s3s4 与 s3s4s5 不可行，取连续可用段
+      var seg = [[2,3,4],[3,4,5],[4,5,6]].filter(function (a) {
+        return a.every(function (n) { return GREEN.indexOf('s' + n) >= 0; });
+      });
+      if (!seg.length) { var g2 = pick(GREEN); return { type: 'pung', ids: [g2, g2, g2] }; }
+      var a = pick(seg);
+      return { type: 'sequence', ids: a.map(function (n) { return 's' + n; }) };
+    }
+    return null;
+  }
+
+  // 带主题的整手：只从池里取，pung 优先（保证成形）
+  function buildThemed(kind) {
+    var concealedIds = [], melds = [];
+    var furo = ri(3);
+    var need = 4 - furo;
+    for (var k = 0; k < need; k++) {
+      var m = themedMeld(kind) || themedMeld('honors');
+      if (!m) return null;
+      concealedIds = concealedIds.concat(m.ids);
+    }
+    var pairPool = kind === 'honors' ? HONORS
+                 : kind === 'terminals' ? TERMINALS : GREEN;
+    var pr = pick(pairPool);
+    concealedIds.push(pr, pr);
+    for (var f = 0; f < furo; f++) {
+      var fm = themedMeld(kind) || themedMeld('honors');
+      if (!fm) return null;
+      melds.push(fm);
+    }
+    var cnt = {};
+    function bump(id) { cnt[id] = (cnt[id] || 0) + 1; }
+    concealedIds.forEach(bump);
+    melds.forEach(function (m2) { m2.ids.forEach(bump); });
+    for (var key in cnt) if (cnt[key] > 4) return null;
+    return {
+      concealed: concealedIds.map(tile),
+      melds: melds.map(function (m3) {
+        return { type: m3.type, tiles: m3.ids.map(tile) };
+      }),
+      ankan: 0, minkan: 0
+    };
+  }
+
+  // 构造一手；返回 {concealed[], melds[{type,tiles}]} 或 null
+  function build() {
+    var shape = rnd();
+    var concealedIds = [], melds = [];
+
+    if (shape < 0.04) {                              // 七对子
+      var pairs = [], guard = 0;
+      while (pairs.length < 7 && guard++ < 300) {
+        var t = randTile();
+        if (pairs.indexOf(t) >= 0) continue;
+        pairs.push(t);
+      }
+      if (pairs.length < 7) return null;
+      for (var i = 0; i < 7; i++) concealedIds.push(pairs[i], pairs[i]);
+      return { concealed: concealedIds.map(tile), melds: [] };
+    }
+    if (shape < 0.05) {                              // 国士
+      var all = ['m1','m9','p1','p9','s1','s9'].concat(HONORS);
+      for (var j = 0; j < all.length; j++) concealedIds.push(all[j]);
+      concealedIds.push(pick(all));
+      return { concealed: concealedIds.map(tile), melds: [] };
+    }
+    if (shape < 0.06) {                              // 九莲（清一色 1112345678999 + 1）
+      var su = pick(SUITS);
+      var nine = [1,1,1,2,3,4,5,6,7,8,9,9,9].map(function (n) { return su + n; });
+      nine.push(su + (1 + ri(9)));
+      return { concealed: nine.map(tile), melds: [] };
+    }
+
+    if (shape < 0.16) {                             // 主题手：字一色/清老头/绿一色
+      var kind = pick(['honors', 'terminals', 'green', 'honors']);
+      return buildThemed(kind);
+    }
+    // 标准形：副露 furo 个 + 暗手 need 个面子 + 雀头
+    var furo = ri(5);                                // 0..4
+    var need = 4 - furo;
+    for (var k = 0; k < need; k++) {
+      var m = randMeld();
+      for (var a = 0; a < 3; a++) concealedIds.push(m.ids[a]);
+    }
+    var pr = randTile();
+    concealedIds.push(pr, pr);
+    for (var f = 0; f < furo; f++) melds.push(randMeld());
+
+    // 4 张上限校验（含副露）
+    var cnt = {};
+    function bump(id) { cnt[id] = (cnt[id] || 0) + 1; }
+    concealedIds.forEach(bump);
+    melds.forEach(function (m2) { m2.ids.forEach(bump); });
+    for (var key in cnt) if (cnt[key] > 4) return null;
+
+    // 杠：把某个副露刻子升级为明杠（4 张），并记 minkan 数
+    var ankan = 0, minkan = 0;
+    if (melds.length > 0 && rnd() < 0.18) {
+      for (var z = 0; z < melds.length; z++) {
+        if (melds[z].type === 'pung' && (cnt[melds[z].ids[0]] || 0) <= 3) {
+          melds[z] = { type: 'minkan', ids: melds[z].ids.concat([melds[z].ids[0]]) };
+          minkan++;
+          break;
+        }
+      }
+    }
+    return {
+      concealed: concealedIds.map(tile),
+      melds: melds.map(function (m3) {
+        return { type: m3.type, tiles: m3.ids.map(tile) };
+      }),
+      ankan: ankan, minkan: minkan
+    };
+  }
+
+  fetch('/ike.json').then(function (r) { return r.json(); }).then(function (cfg) {
+    var checker = new WinChecker(null, cfg);
+    (cfg.yaku || []).forEach(function (y) { if (y.optional) checker.optionalEnabled.add(y.id); });
+
+    var out = [], attempts = 0, cap = N * 40;
+    while (out.length < N && attempts < cap) {
+      attempts++;
+      var built = build();
+      if (!built) continue;
+
+      var winTile = built.concealed[ri(built.concealed.length)];
+      var selfDraw = rnd() < 0.5;
+      var ctx = {
+        seaMoon: rnd() < 0.12, haiDei: rnd() < 0.12, riverFish: rnd() < 0.12,
+        lastTileVisible: ri(4),
+        seatWind: pick(['east', 'south', 'west', 'north']),
+        roundWind: pick(['east', 'south', 'west', 'north'])
+      };
+
+      var res = null;
+      try {
+        res = checker.checkWin(built.concealed, selfDraw, built.melds.length > 0,
+                               built.ankan || 0, built.minkan || 0, built.melds, [],
+                               false, [], winTile, ctx);
+      } catch (e) { continue; }
+      if (!res) continue;
+
+      out.push({
+        hand: built.concealed.map(function (t) { return t.id; }),
+        melds: built.melds.map(function (m) {
+          return { type: m.type, tiles: m.tiles.map(function (t) { return t.id; }) };
+        }),
+        selfDraw: selfDraw, hasCalled: built.melds.length > 0,
+        ankan: built.ankan || 0, minkan: built.minkan || 0, firstTurn: false,
+        winTile: winTile ? winTile.id : null,
+        ctx: ctx,
+        result: {
+          success: !!res.success,
+          reason: res.reason || null,
+          totalFu: (res.totalFu === undefined ? null : res.totalFu),
+          handType: res.handType || null,
+          yaku: (res.activeYaku || []).map(function (y) {
+            return { name: y.name, fu: y.fu, id: y.id || null, isBonus: !!y.isBonus };
+          }),
+          specialPoints: (res.specialPoints === undefined ? null : res.specialPoints),
+          sevenHonors: !!res.sevenHonors
+        }
+      });
+    }
+
+    var ok = out.filter(function (e) { return e.result.success; }).length;
+    var meta = { n: out.length, ok: ok, seed: SEED, attempts: attempts };
+    document.getElementById('o').textContent =
+      'RMETA<' + JSON.stringify(meta) + '>RMETA\nRANDOM<' + JSON.stringify(out) + '>RANDOM';
+  }).catch(function (e) {
+    document.getElementById('o').textContent = 'RERR<' + (e && e.message ? e.message : String(e)) + '>RERR';
+  });
+})();
+</script></body></html>
