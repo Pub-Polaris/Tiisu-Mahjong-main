@@ -26,3 +26,6 @@
 > **可用通道**（实测）：官方 PDF、GitHub API、jsDelivr CDN（`cdn.jsdelivr.net`）、少数直连站点。
 > **不可用**：百度百科、萌娘百科、维基系、wikiwand。
 | 2026-10-18 | 同上（`yaku_list/*.py` 逐文件） | 一手开源 | **已读 43 役 + 20 役满**（4 个文件抓取失败：suuankou_tanki / suukantsu / tenhou / tsuisou） | 日麻役种全表 |
+| 2026-10-18 | [Mahjong Wiki · Zung Jung Scoring](https://mahjong.wikidot.com/rules:zung-jung-scoring) | 社区 Wiki（CC BY-SA） | **已读** | 中庸 44 番种表 |
+| 2026-10-18 | [Mahjong Wiki · Chinese Classical Scoring](https://mahjong.wikidot.com/rules:chinese-classical-scoring) | 社区 Wiki（CC BY-SA） | **已读** | 古典三张计分表 |
+| 2026-10-18 | [Mahjong Wiki 首页 / List of Patterns](https://mahjong.wikidot.com/) | 社区 Wiki（CC BY-SA） | **已读** | 索引与跨体系 pattern 页 |
