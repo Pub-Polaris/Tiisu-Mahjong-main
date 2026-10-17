@@ -49,11 +49,25 @@
 | `docs/北极星_(人类)/` | 项目与作者本人 | 规则书、代码地图、个人指南、规则缺口、规则对照、口径账本、设计、模板、自检、信、导航 |
 | `docs/DSH/` | Deepseek Harness | 项目交接、已知坑、历史归档 |
 | `docs/OpencodeAgent_老Agent想说的话/` | opencode agent | 工具调用说明、CHANGELOG |
+| `docs/knowledge/` | 所有 agent | **外部权威资料沉淀**（.NET/C#/测试/托管），每条带来源 URL 与抓取日期 |
 | `docs/README.md` | 通用 | 本文件（总索引） |
 
 ---
 
 ## 三、全部文档清单
+
+### `docs/knowledge/`（外部知识库）
+
+| 文档 | 一句话 |
+|---|---|
+| `README.md` | 用法与维护规则（先搜这里再上网；每条带来源与日期） |
+| `sources.md` | 来源清单（URL / 级别 / 抓取日期 / 状态） |
+| `dotnet10-csharp14.md` | .NET 10（LTS）与 C# 14 可用特性、SDK 变化（含 `.slnx`） |
+| `csharp-type-model.md` | record / 抽象 record / 模式匹配；**C# 14 无 union 类型** |
+| `testing-xunit-v3.md` | xUnit v3 能力（数据驱动、动态跳过、MTP、CTRF） |
+| `hosting-webview2.md` | 桌面外壳方案（待补） |
+| `serialization-json.md` | System.Text.Json 源生成（待补） |
+| `domain-mahjong.md` | 本项目领域知识：两套役种机制、必保真口径、不可达役 |
 
 ### 仓库根目录
 

@@ -54,8 +54,50 @@
 | 261002-20 | 2026-10-18 | **覆盖补完 70/70 + 边张可用 + 更正 261002-19 的错判** | 查明「双双逢/双色双老少」未命中是因它们是 **optional 可选役默认禁用**（验证台会全部启用）；双双逢、双色双老少 均补正向断言；`边张` 实测**可用**（自摸过门槛后正常 1 赋），把「待补」改为真断言；更正 261002-19 对 同色双老少/三双逢 的理由 |
 | 261002-21 | 2026-10-18 | **仓库改名 Playground → Tiisu_Mahjong_WEB** | 目录重命名 + git `safe.directory` 补两条 + 19 个操作性文件 50 处路径同步；历史文件按约定保留旧写法；验收 Root 显示新路径且全绿 |
 | 261002-22 | 2026-10-18 | **仓库迁到本地 E: 盘（脱离 NAS）** | 权威副本 `E:\工程文件\TiisuMahjong\Web`；20 文件 53 处引用改为 E 盘；NAS 告警改历史说明；顺修 `261002-21` 引入的 3 处脱敏回退 |
+| 261002-23 | 2026-10-18 | **知识库 + DSH 工具章节 + .NET 骨架** | 新建 `docs/knowledge/`（6 主题 + 来源清单，带抓取日期）；`AGENTS.md` 新增「十、使用 DSH 自带工具」9 小节；`E:\...\TiisuMahjong\NET` 建 solution（Core/Tests/Tools，net10.0，SDK 固定 10.0.402） |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-23 — 知识库 + DSH 工具章节 + .NET 骨架（2026-10-18）
+
+### 一、`docs/knowledge/`（外部知识库）
+
+北极星要求「搭自己的知识库，含未来要做的事在互联网上的最新知识」。新建 6 个主题 + 来源清单：
+
+| 文件 | 内容 | 来源 |
+|---|---|---|
+| `dotnet10-csharp14.md` | .NET 10 是 LTS（3 年）；C# 14 特性；SDK 变化（`.slnx`、MTP） | Microsoft Learn（2026-10-18 抓取） |
+| `csharp-type-model.md` | record / 抽象 record 层级 / 模式匹配；**C# 14 无 union 类型** | 同上 + 语言现状 |
+| `testing-xunit-v3.md` | 数据驱动、`ITheoryDataRow`、动态跳过、`-filter`、CTRF | xunit.net 官方（2026-10-18 抓取） |
+| `hosting-webview2.md` | 桌面外壳（待补，已列待查项） | — |
+| `serialization-json.md` | System.Text.Json 源生成（待补） | — |
+| `domain-mahjong.md` | 本项目领域知识：61 判据 + 9 流程例外、必保真的 7 条口径 | 本项目实测 |
+
+维护规则写在 `README.md`：先搜再上网、每条带来源 URL 与抓取日期、被证伪的结论加更正而不是删除。
+
+### 二、`AGENTS.md` 新增第十节「使用 DSH 自带工具」
+
+覆盖：`ask_user_question`（规则/优先度必须问）、`todo_write`、`web_search`/`web_fetch`、
+`skill`、`subagent`/`workflow`、后台任务、`present`、`lcm_*` 归档检索，以及一节「反面清单」
+（全杀 python、没跑就写已验证、凭记忆写 API、PowerShell 内联 Python）。
+
+### 三、`.NET` 骨架（在仓库外）
+
+`E:\工程文件\TiisuMahjong\NET`：`global.json` 固定 SDK **10.0.402**（避免默认用 11 RC）、
+`Tiisu.slnx`（.NET 10 新解决方案格式）、`src/Tiisu.Core`、`tests/Tiisu.Core.Tests`（xUnit）、
+`tools/Tiisu.Tools`。`dotnet build` 0 警告 0 错误、`dotnet test` 通过。
+
+> `.NET` 目录**当前不在版本控制下**（Web 才是 git 仓库）。建议后续单独建仓或调整仓库边界。
+
+### 四、验收
+
+    Root: E:\工程文件\TiisuMahjong\Web
+    YAKUTEST: PASS 202/202 断言 · 87 用例
+    ENGINETEST: PASS 73/73 断言 · 18 用例
+    ALL CHECKS PASSED
+    dotnet build -> 0 警告 0 错误；dotnet test -> 通过 1/1
+
 ---
 
 ## 261002-22 — 仓库迁到本地 E: 盘（2026-10-18）
