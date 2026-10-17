@@ -50,3 +50,13 @@
 - 字段：`hand[] / melds[] / selfDraw / hasCalled / ankan / minkan / firstTurn / winTile / ctx`
   + `result{success, reason, totalFu, handType, yaku[], specialPoints, sevenHonors}`。
 - 重新生成：改了 JS 判役后必须重跑，并把新 JSON 提交到 C# 仓库（它是 C# 的验收基准）。
+
+## 高目优先（2026-10-18 北极星裁定）
+
+同一手牌可能有多种「面子拆法」，**取赋数最高者**；赋数并列 → 役种数多者优先；仍并列 → 取先出现的。
+
+- 实现：`WinChecker.maxSplit`（默认 `true`）。`checkWin` 在外层枚举 `splitStandardAll(hand)`，
+  对每种拆法调用一次内部 `_checkOne`，按 (totalFu, 役种数) 取最优。
+- 实证：`m111222333 + p123 + p99` 可拆成 3 刻（**18 赋**）或 3 顺（**29 赋**）→ 取 29。
+- 七对 / 国士 / 九莲不参与枚举（唯一形状）。
+- 关闭开关（`maxSplit=false`）可复现旧行为，用于对照。

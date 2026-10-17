@@ -27,6 +27,7 @@ ROOT = os.path.dirname(HERE)
 PORT = 7777
 BASE = "http://127.0.0.1:%d" % PORT
 URL = BASE + "/scripts/yaku_test.html?golden=1"
+URL_MAXSPLIT = URL + "&maxsplit=1"
 
 EDGE_CANDIDATES = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -82,6 +83,8 @@ def main():
     ap.add_argument("-o", "--out", default=os.path.join(
         os.path.dirname(ROOT), "NET", "tests", "fixtures", "yaku-golden.json"))
     ap.add_argument("--no-start", action="store_true")
+    ap.add_argument("--max-split", action="store_true",
+                    help="生成「高目优先」版本（枚举全部拆法取赋数最高）")
     args = ap.parse_args()
 
     if not server_alive():
@@ -98,7 +101,8 @@ def main():
             "--disable-extensions",
             "--disk-cache-dir=" + os.path.join(tmp, "c"),
             "--user-data-dir=" + os.path.join(tmp, "u"),
-            "--virtual-time-budget=30000", "--dump-dom", URL]
+            "--virtual-time-budget=30000", "--dump-dom",
+            (URL_MAXSPLIT if args.max_split else URL)]
     with open(dom, "wb") as f:
         subprocess.run(argv, stdout=f, stderr=subprocess.DEVNULL, timeout=180)
 
@@ -121,7 +125,8 @@ def main():
         f.write("\n")
 
     ok = sum(1 for d in data if d.get("result", {}).get("success"))
-    print("golden entries: %d  (success %d / fail %d)" % (len(data), ok, len(data) - ok))
+    print("golden entries: %d  (success %d / fail %d)%s"
+          % (len(data), ok, len(data) - ok, "  [maxSplit]" if args.max_split else ""))
     print("written:", out, "(%.1f KB)" % (os.path.getsize(out) / 1024.0))
 
 

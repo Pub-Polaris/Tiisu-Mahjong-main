@@ -254,6 +254,20 @@ function ytDefineCases() {
         ytEq('嵌张 = 1 赋', ytFuOf(r, '嵌张'), 1);
     });
 
+    ytT('5.5 · 高目优先（多解取赋数最高）', () => {
+        // m111222333 可拆成 3 个刻子（18 赋）或 3 个顺子（29 赋）——规则要求取高目。
+        const hand = ytBuild('m',111,'m',222,'m',333,'p',123,'p',99);
+        const r = ytCheck({ hand, winTile:'m1' });
+        ytOk('和牌成功', r.success, ytBrief(r));
+        ytEq('默认取高目 = 29 赋', r.totalFu, 29);
+        // 对照：关掉高目开关应退回"第一个拆法"的 18 赋，证明差异真实存在
+        const old = YT.checker.maxSplit;
+        YT.checker.maxSplit = false;
+        const r2 = ytCheck({ hand, winTile:'m1' });
+        YT.checker.maxSplit = old;
+        ytEq('关闭高目时的对照值 = 18 赋', r2.totalFu, 18);
+    });
+
     ytT('5.5 · 边张 1 赋（12 听 3 / 89 听 7）', () => {
         // checkWin 收的是【和牌后】的 14 张，和牌张在其中只能出现一次，
         // 因此『和牌前手里 2 张 2m 的 12m 搭子』这种边张原型，在 14 张里凑不出合法牌型
@@ -839,6 +853,8 @@ function ytDefineCases() {
         // ── golden 捕获（?golden=1）：记录每次 checkWin 的输入与结果，供 C# 逐字段对比 ──
         // 仅在显式带参数时启用，正常跑测试不受影响。
         if (location.search.indexOf('golden=1') >= 0) {
+            // maxsplit=1：开启「高目优先」（枚举全部拆法取赋数最高）
+            if (location.search.indexOf('maxsplit=1') >= 0) YT.checker.maxSplit = true;
             YT.golden = [];
             const _cw = YT.checker.checkWin.bind(YT.checker);
             YT.checker.checkWin = function (hand, selfDraw, hasCalled, ankan, minkan, melds, draw, firstTurn, dora, winTile, ctx) {

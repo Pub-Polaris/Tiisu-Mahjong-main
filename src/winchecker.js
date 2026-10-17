@@ -46,6 +46,58 @@ function splitStandard(hand) {
     const s=hand.slice().sort((a,b)=>a.id.localeCompare(b.id));
     return findPair(s);
 }
+
+// 枚举「n 面子 + 1 对」的全部拆法（供 maxSplit 的高目优先使用）。
+// 返回：[[{type,tiles}, ...], ...]；每种解含 pair。仅用于标准形（长度 = 3n+2）。
+function splitStandardAll(hand) {
+    const byId = new Map();
+    for (const t of hand) if (!byId.has(t.id)) byId.set(t.id, t);
+    const cnt = new Map();
+    for (const t of hand) cnt.set(t.id, (cnt.get(t.id) || 0) + 1);
+    const n = hand.length;
+    if (n < 2 || (n - 2) % 3 !== 0) return [];
+    const need = (n - 2) / 3;
+    const rank = { m: 0, p: 1, s: 2, z: 3 };
+    const cmp = (a, b) => (rank[a[0]] - rank[b[0]]) || (Number(a.slice(1)) - Number(b.slice(1)));
+    const ids = [...cnt.keys()].sort(cmp);
+    const out = [], seen = new Set(), path = [];
+    const firstLeft = () => ids.find(id => (cnt.get(id) || 0) > 0) || null;
+
+    function rec(k) {
+        if (k === need) {
+            const left = ids.filter(id => (cnt.get(id) || 0) > 0);
+            if (left.length === 1 && cnt.get(left[0]) === 2) {
+                const pt = byId.get(left[0]);
+                const gs = path.concat([{ type: 'pair', tiles: [pt, pt] }]);
+                const key = gs.map(g => g.tiles.map(t => t.id).sort().join('')).sort().join('|');
+                if (!seen.has(key)) { seen.add(key); out.push(gs); }
+            }
+            return;
+        }
+        const id = firstLeft();
+        if (!id) return;
+        const t = byId.get(id);
+        if ((cnt.get(id) || 0) >= 3) {          // 刻子
+            cnt.set(id, cnt.get(id) - 3);
+            path.push({ type: 'pung', tiles: [t, t, t] });
+            rec(k + 1);
+            path.pop();
+            cnt.set(id, cnt.get(id) + 3);
+        }
+        if (t.suit !== 'z' && Number(t.num) <= 7) {   // 顺子
+            const b = t.suit + (Number(t.num) + 1), c = t.suit + (Number(t.num) + 2);
+            if ((cnt.get(b) || 0) > 0 && (cnt.get(c) || 0) > 0) {
+                cnt.set(id, cnt.get(id) - 1); cnt.set(b, cnt.get(b) - 1); cnt.set(c, cnt.get(c) - 1);
+                path.push({ type: 'sequence', tiles: [t, byId.get(b), byId.get(c)] });
+                rec(k + 1);
+                path.pop();
+                cnt.set(id, cnt.get(id) + 1); cnt.set(b, cnt.get(b) + 1); cnt.set(c, cnt.get(c) + 1);
+            }
+        }
+    }
+    rec(0);
+    return out;
+}
 function findPair(tiles) {
     if(tiles.length===0)return {success:true,groups:[]};
     if(tiles.length%3!==2)return {success:false};
@@ -129,6 +181,7 @@ class WinChecker {
         this.yakuData = yakuData;
         this.baseFu = yakuData.baseFu || 7;
         this.optionalEnabled = new Set(); // 已启用的可选役（5.7）
+        this.maxSplit = true;             // 高目优先（枚举全部拆法取赋数最高）；北极星 2026-10-18 定
     }
 
     getYakuFu(id) {
@@ -151,7 +204,42 @@ class WinChecker {
      * @param {Object|null} winTile 和牌张
      * @param {Object|null} winCtx   偶发役上下文 {seaMoon, haiDei, riverFish, lastTileVisible}
      */
+    /**
+     * 和牌判定（公开入口）。
+     * `this.maxSplit === true` 时：枚举全部「面子拆法」，取赋数最高者；
+     *   赋数并列 → 役种数多者优先；仍并列 → 取先出现的（稳定）。
+     * 默认 false → 与旧行为完全一致。
+     */
     checkWin(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, kans, firstTurn, discards, winTile, winCtx) {
+        if (!this.maxSplit) return this._checkOne.apply(this, arguments);
+
+        const meldCount = (melds || []).length;
+        const need = 4 - meldCount;
+        const special = meldCount === 0 && (isSevenPairs(hand) || isKokushi13(hand));
+        if (special || need < 0 || hand.length !== need * 3 + 2) {
+            return this._checkOne.apply(this, arguments);   // 非标准形：唯一解
+        }
+        const all = splitStandardAll(hand);
+        if (all.length <= 1) return this._checkOne.apply(this, arguments);
+
+        let best = null, bestFu = -1, bestN = -1;
+        for (const gs of all) {
+            this._forcedGroups = gs;
+            let r = null;
+            try { r = this._checkOne.apply(this, arguments); } catch (e) { r = null; }
+            if (r && r.success) {
+                const fu = r.totalFu || 0;
+                const cnt = (r.activeYaku || []).length;
+                if (fu > bestFu || (fu === bestFu && cnt > bestN)) { best = r; bestFu = fu; bestN = cnt; }
+            } else if (!best) {
+                best = r;
+            }
+        }
+        this._forcedGroups = null;
+        return best || this._checkOne.apply(this, arguments);
+    }
+
+    _checkOne(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, kans, firstTurn, discards, winTile, winCtx) {
         this._winTile = winTile || null;
         this._winCtx = winCtx || null;
         this._concealedHand = hand.slice(); // 暗手（供暗刻役排除明副露）
@@ -198,7 +286,10 @@ class WinChecker {
             if (need < 0 || concealedLen !== (need * 3) + 2) {
                 return {success:false,reason:'not_formed',msg:'暗手张数与所需面子数不符'};
             }
-            const r = splitStandard(hand);
+            // maxSplit 枚举时由外层指定拆法；否则取第一个解（旧行为）
+            const r = this._forcedGroups
+                ? { success: true, groups: this._forcedGroups }
+                : splitStandard(hand);
             const formedGroups = (r.success && r.groups) ? r.groups.filter(g=>g.type!=='pair').length : -1;
             if (!r.success || formedGroups !== need) {
                 return {success:false,reason:'not_formed',msg:'暗手不成形'};

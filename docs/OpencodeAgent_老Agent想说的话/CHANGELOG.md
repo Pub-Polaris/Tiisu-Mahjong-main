@@ -57,8 +57,47 @@
 | 261002-23 | 2026-10-18 | **知识库 + DSH 工具章节 + .NET 骨架** | 新建 `docs/knowledge/`（6 主题 + 来源清单，带抓取日期）；`AGENTS.md` 新增「十、使用 DSH 自带工具」9 小节；`E:\...\TiisuMahjong\NET` 建 solution（Core/Tests/Tools，net10.0，SDK 固定 10.0.402） |
 | 261002-24 | 2026-10-18 | **更正：非公网 IP 是本机反代所致** | `web_fetch` 报 `resolves to a non-public IP address` 的真因是**本地反向代理**，不是网络策略/防火墙；已同步进全局 `~/.dsh/AGENTS.md`、项目 `AGENTS.md` 10.3、`docs/knowledge/sources.md` |
 | 261002-25 | 2026-10-18 | **golden corpus 生成器 + C# 仓库建仓** | `yaku_test.html` 加 `?golden=1` 捕获钩子（记录每次 checkWin 输入/结果，正常跑测试不受影响）；新增 `scripts/gen_golden.py`；产出 `NET/tests/fixtures/yaku-golden.json`（102 条，92 成功）；C# 侧新建仓库 `Pub-Polaris/Tiisu-Mahjong-CSharp`（`ba1eb1b`） |
+| 261002-26 | 2026-10-18 | **高目优先（多解拆法取赋数最高）** | `WinChecker.maxSplit` 默认开启：枚举全部拆法、按 (赋数, 役种数) 取最优；实证 `m111222333+p123+p99` 由 18 赋改为 29 赋；断言 202→205 / 用例 87→88；golden 重生成 104 条（含 29 与 18 两条对照） |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-26 — 高目优先（多解拆法取赋数最高）（2026-10-18）
+
+北极星裁定：**同一手牌可多种拆法时，只取高目（赋数较高）者**；并列再比役种数，仍并列取先出现的。
+
+### 一、为什么必须先改 JS
+
+C# 计划以现有 JS 为 **oracle**（先等价、后改进）。但 JS 原来 `splitStandard` **只取第一个解**，
+若 C# 直接实现高目，两边就不等价；若照抄 JS，则等于"等价地错"。故先让 oracle 自己算高目。
+
+### 二、实现（最小侵入）
+
+- 新增 `splitStandardAll(hand)`：枚举「n 面子 + 1 对」的全部拆法。
+- 原 `checkWin` 改名为 `_checkOne`（逻辑未动），外面加一层 `checkWin`：
+  `maxSplit` 时逐拆法调用 `_checkOne`（通过 `this._forcedGroups` 指定拆法），按 (totalFu, 役种数) 取最优。
+- **默认开启** `maxSplit = true`。关闭开关可复现旧行为（用于对照与回退）。
+
+### 三、实证
+
+正向对照（这就是"高目"真正会改结果的地方）：
+
+| 牌型 | 拆法 A | 拆法 B | 取值 |
+|---|---|---|---|
+| `m111222333 + p123 + p99` | 3 刻 → **18 赋** | 3 顺 → **29 赋** | **29** |
+| `#49`（四暗刻形） | 30 赋 | 29 赋 | 30 |
+| `#63`（混一色形） | 23 赋 | 23 赋 | 23（并列，取先出现） |
+
+**对现有 102 条语料：两种模式 0 差异**（那两手多解牌恰好同分），所以迁移不受影响；
+但规则上必须按 29 结算，故默认已改为高目。
+
+### 四、验收
+
+    YAKUTEST: PASS 205/205 断言 · 88 用例
+    ENGINETEST: PASS 73/73 断言 · 18 用例
+    ALL CHECKS PASSED
+    gen_golden.py -> 104 entries（含 29 赋与 18 赋两条对照）
+
 ---
 
 ## 261002-25 — golden corpus 生成器（2026-10-18）
