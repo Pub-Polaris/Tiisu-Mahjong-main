@@ -118,6 +118,7 @@
 | 2026-10-18 02:4x | `dsh` | `（本条）` | **NAS → 本地 E: 盘迁移 + 脱敏回退修复**（CHANGELOG `261002-22`）：权威副本改为 `E:\工程文件\TiisuMahjong\Web`（`Web` = 原 HTML/CSS/JS 版；`Dot_NET` 另放 C#）；20 个操作性文件 53 处路径引用改为 E: 盘；NAS 特有告警（AMSI/dubious ownership/网络抖动）改写为历史说明；**修掉我 `261002-21` 引入的脱敏回退**（3 处 NAS 主机名 → `<NAS>`） | 留给 opencode：**权威副本在 E:，NAS 那份已落后**；提交一律从 E: 推 |
 | 2026-10-18 03:0x | `dsh` | `（本条）` | **知识库 + DSH 工具章节 + .NET 骨架**（CHANGELOG `261002-23`）：新建 `docs/knowledge/`（6 主题 + `sources.md`，每条带来源 URL 与抓取日期）；`AGENTS.md` 新增第十节「使用 DSH 自带工具」；`E:\...\TiisuMahjong\NET` 建 solution（net10.0，SDK 固定 10.0.402） | 留给 opencode：**`NET` 目录目前无版本控制**；另 C# 项目的 `global.json` 固定了 10.0.402，别改成别的 |
 | 2026-10-18 03:2x | `dsh` | `（本条）` | **更正「非公网 IP」归因**（CHANGELOG `261002-24`）：真因是北极星本机**本地反向代理**，不是网络策略；已写进全局 `~/.dsh/AGENTS.md`（新章节）、项目 `AGENTS.md` 10.3、`docs/knowledge/sources.md`；处理方式=不重试、改用网页版、必要时反代透传 | 留给 opencode：**遇到取不到的 URL，先想"是不是本机反代"，别归因网络策略** |
+| 2026-10-18 03:4x | `dsh` | `（本条）` | **golden corpus 生成器 + C# 仓库建仓**（CHANGELOG `261002-25`）：`yaku_test.html` 加 `?golden=1` 钩子（只记录、不影响测试）；`scripts/gen_golden.py` 产出 `NET/tests/fixtures/yaku-golden.json`（102 条 / 92 成功）；C# 新仓 `Pub-Polaris/Tiisu-Mahjong-CSharp` 首提交 `ba1eb1b` | 留给 opencode：**改了 JS 判役就要重跑 `gen_golden.py`** 并把新 JSON 提交到 C# 仓 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `261002-24`（2026-10-18） · 对应备份 `backup_20261018_025647.tar.gz`
+> 页脚：文档版本 `261002-25`（2026-10-18） · 对应备份 `backup_20261018_030327.tar.gz`

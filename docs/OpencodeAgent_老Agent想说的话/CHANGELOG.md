@@ -56,8 +56,55 @@
 | 261002-22 | 2026-10-18 | **仓库迁到本地 E: 盘（脱离 NAS）** | 权威副本 `E:\工程文件\TiisuMahjong\Web`；20 文件 53 处引用改为 E 盘；NAS 告警改历史说明；顺修 `261002-21` 引入的 3 处脱敏回退 |
 | 261002-23 | 2026-10-18 | **知识库 + DSH 工具章节 + .NET 骨架** | 新建 `docs/knowledge/`（6 主题 + 来源清单，带抓取日期）；`AGENTS.md` 新增「十、使用 DSH 自带工具」9 小节；`E:\...\TiisuMahjong\NET` 建 solution（Core/Tests/Tools，net10.0，SDK 固定 10.0.402） |
 | 261002-24 | 2026-10-18 | **更正：非公网 IP 是本机反代所致** | `web_fetch` 报 `resolves to a non-public IP address` 的真因是**本地反向代理**，不是网络策略/防火墙；已同步进全局 `~/.dsh/AGENTS.md`、项目 `AGENTS.md` 10.3、`docs/knowledge/sources.md` |
+| 261002-25 | 2026-10-18 | **golden corpus 生成器 + C# 仓库建仓** | `yaku_test.html` 加 `?golden=1` 捕获钩子（记录每次 checkWin 输入/结果，正常跑测试不受影响）；新增 `scripts/gen_golden.py`；产出 `NET/tests/fixtures/yaku-golden.json`（102 条，92 成功）；C# 侧新建仓库 `Pub-Polaris/Tiisu-Mahjong-CSharp`（`ba1eb1b`） |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-25 — golden corpus 生成器（2026-10-18）
+
+北极星选定：**先冻结行为，再写 C#**。本轮把「行为基准」生成流程做出来。
+
+### 一、做法：不另立用例，让现有测试当生成器
+
+`scripts/yaku_test.html` 增加一个**仅当 `?golden=1` 时生效**的钩子：
+
+```js
+const _cw = YT.checker.checkWin.bind(YT.checker);
+YT.checker.checkWin = function (...) {
+    const res = _cw.apply(null, arguments);
+    YT.golden.push({ hand, melds, selfDraw, ... , result: {...} });
+    return res;
+};
+```
+
+好处：语料与现有 87 用例 / 202 断言**天然同步**，不会出现「测试改了、语料没更」的漂移；
+正常跑测试完全不受影响（实测仍 `PASS 202/202`）。
+
+### 二、`scripts/gen_golden.py`
+
+无头 Edge 打开 `?golden=1` → 取出 `GOLDEN<...>GOLDEN` → 写 JSON。
+自启 `server.py`（已有则复用），默认输出到 **`NET/tests/fixtures/yaku-golden.json`**。
+
+**首跑结果**：102 条引擎调用（92 成功 / 10 失败），105 KB。
+
+> 注意：102 < 202 是正常的 —— 202 是**断言**数，其中部分是同一手牌的多个断言，
+> 而语料只记 `checkWin` 的**调用**次数。
+
+### 三、C# 仓库
+
+新建 `https://github.com/Pub-Polaris/Tiisu-Mahjong-CSharp`，首提交 `ba1eb1b`：
+`global.json`（SDK 10.0.402）、`Tiisu.slnx`、`src/Tiisu.Core`、`tests/Tiisu.Core.Tests`、`tools/Tiisu.Tools`。
+建仓时远端已有 GitHub 生成的 `README.md` → rebase 冲突，已合并两边内容后继续。
+
+### 四、验收
+
+    Root: E:\工程文件\TiisuMahjong\Web
+    YAKUTEST: PASS 202/202 断言 · 87 用例
+    ENGINETEST: PASS 73/73 断言 · 18 用例
+    ALL CHECKS PASSED
+    gen_golden.py -> 102 entries (success 92 / fail 10)
+
 ---
 
 ## 261002-24 — 更正：非公网 IP 是本机反代所致（2026-10-18）

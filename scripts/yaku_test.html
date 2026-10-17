@@ -835,6 +835,40 @@ function ytDefineCases() {
         // 验证台按"全部启用"跑：可选役（全数、全数筋和、同色老少…）默认关，
         // 但规则正确性验证需要它们参与，否则含这些役的手牌会掉到 7 赋门槛以下。
         (config.yaku || []).forEach(function(y){ if (y.optional) YT.checker.optionalEnabled.add(y.id); });
+
+        // ── golden 捕获（?golden=1）：记录每次 checkWin 的输入与结果，供 C# 逐字段对比 ──
+        // 仅在显式带参数时启用，正常跑测试不受影响。
+        if (location.search.indexOf('golden=1') >= 0) {
+            YT.golden = [];
+            const _cw = YT.checker.checkWin.bind(YT.checker);
+            YT.checker.checkWin = function (hand, selfDraw, hasCalled, ankan, minkan, melds, draw, firstTurn, dora, winTile, ctx) {
+                const res = _cw.apply(null, arguments);
+                try {
+                    YT.golden.push({
+                        hand: (hand || []).map(function (t) { return t.id; }),
+                        melds: (melds || []).map(function (m) {
+                            return { type: m.type, tiles: m.tiles.map(function (t) { return t.id; }) };
+                        }),
+                        selfDraw: !!selfDraw, hasCalled: !!hasCalled,
+                        ankan: ankan || 0, minkan: minkan || 0, firstTurn: !!firstTurn,
+                        winTile: winTile ? winTile.id : null,
+                        ctx: ctx || null,
+                        result: {
+                            success: !!res.success,
+                            reason: res.reason || null,
+                            totalFu: (res.totalFu === undefined ? null : res.totalFu),
+                            handType: res.handType || null,
+                            yaku: (res.activeYaku || []).map(function (y) {
+                                return { name: y.name, fu: y.fu, id: y.id || null, isBonus: !!y.isBonus };
+                            }),
+                            specialPoints: (res.specialPoints === undefined ? null : res.specialPoints),
+                            sevenHonors: !!res.sevenHonors
+                        }
+                    });
+                } catch (e) { /* 捕获失败不影响测试 */ }
+                return res;
+            };
+        }
         YT.gameFactory = function () {
             const g = Object.create(TiisuMahjong.prototype);
             g.config = config; g.settings = {}; g.rinshan = []; g.players = [];
@@ -856,6 +890,13 @@ function ytDefineCases() {
         sumEl.textContent = head;
         sumEl.className = YT.fail === 0 ? 'pass' : 'fail';
         outEl.textContent = head + '\n' + YT.lines.join('\n');
+
+        if (YT.golden) {
+            const el = document.createElement('pre');
+            el.id = 'golden';
+            el.textContent = 'GOLDEN<' + JSON.stringify(YT.golden) + '>GOLDEN';
+            document.body.appendChild(el);
+        }
     } catch (e) {
         const msg = 'YAKUTEST: ERROR ' + (e && e.message ? e.message : String(e));
         sumEl.textContent = msg;
