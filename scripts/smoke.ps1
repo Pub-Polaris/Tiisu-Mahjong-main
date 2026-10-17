@@ -1,7 +1,7 @@
 # ============================================================
 #  smoke.ps1 - Tiisu Mahjong smoke test
 #  Usage:
-#    powershell -NoProfile -ExecutionPolicy Bypass -File P:\Tiisu_Mahjong_WEB\scripts\smoke.ps1
+#    powershell -NoProfile -ExecutionPolicy Bypass -File E:\工程文件\TiisuMahjong\Web\scripts\smoke.ps1
 #    powershell ... -File scripts\smoke.ps1 -Runs 8      # repeat auto game 8 times
 #    powershell ... -File scripts\smoke.ps1 -NoStart     # do not auto-start server
 #  Exit code: 0 = all passed, 1 = some failed

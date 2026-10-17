@@ -2,9 +2,9 @@
 
 > **摘要**：两个 coding agent（DeepSeek Harness / opencode）之间的**改动交换链条**——每次提交一条，用于查"这条改动是谁做的、那时怎么验证的、留了什么给谁"。
 > **面向**：两个 agent + 北极星。
-> **没有 git 也能看**：本文件是普通文本，直接在 `P:\Tiisu_Mahjong_WEB\AGCOMMIT_CHAIN.MD` 打开即可——链条内容不依赖 git 命令。
+> **没有 git 也能看**：本文件是普通文本，直接在 `E:\工程文件\TiisuMahjong\Web\AGCOMMIT_CHAIN.MD` 打开即可——链条内容不依赖 git 命令。
 > **定位**：**按需查，不进"必读清单"**。它不参与每次开工的固定输入，避免会话成本随提交数增长。
-> **基线**：代码 `P:\Tiisu_Mahjong_WEB`，仓库 `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`。
+> **基线**：代码 `E:\工程文件\TiisuMahjong\Web`，仓库 `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`。
 
 ## ⚠ 2026-10-03 历史重写（读旧行前必看）
 
@@ -18,11 +18,11 @@
 
 ## 近期破坏性变更（先读这段）
 
-**如果你没有 git**：本文件与仓库里所有文件一样，直接用编辑器打开 `P:\Tiisu_Mahjong_WEB\...` 即可；下表是"你手上的旧认知可能已失效"的部分。
+**如果你没有 git**：本文件与仓库里所有文件一样，直接用编辑器打开 `E:\工程文件\TiisuMahjong\Web\...` 即可；下表是"你手上的旧认知可能已失效"的部分。
 
 | 时间 | 变更 | 旧认知会怎么错 |
 |---|---|---|
-| 2026-10-18 | **仓库目录改名** | 旧路径 `P:\Playground` **已不存在**；现为 `P:\Tiisu_Mahjong_WEB`。所有旧命令、脚本、文档里的 `P:\Playground` 全部失效（历史文档按约定保留原写法）。git 需补新的 `safe.directory` |
+| 2026-10-18 | **仓库从 NAS 迁到本地 E: 盘** | NAS 上的旧路径（`P:\Playground`、`P:\Tiisu_Mahjong_WEB`、`P:\TiisuMahjong\Web`）**不再是权威副本**；现为 `E:\工程文件\TiisuMahjong\Web`。本地盘**不需要** `safe.directory`。照抄旧命令会指到 NAS 旧副本 |
 | 2026-09-27 | **`daxingqi` → `tiisuin`** | **仅标识符/方法名改名**：`daxingqi`→`tiisuin`（18 处）、`declareDaxingqi`→`declareTiisuin`。**展示名一律用中文「大七星」**，不要把 `tiisuin` 当玩家可见文案（2026-09-27 由 opencode 校正） |
 | 2026-09-27 | **`settings.daxingqi` 键已删除** | 别再写它（`server.py` 默认值、`settings.json`、`portal.html`、`debug.html` 均已移除）；写了是无效键 |
 | 2026-09-27 | **统计键迁移** | `stats.json`：`daxingqiCount` → `tiisuinCount`、`byPlayer[].daxingqi` → `.tiisuin`（**计数保留**） |
@@ -47,7 +47,7 @@
 
 | 情形 | 该怎么做 |
 |---|---|
-| 没 git 的一方要改文件 | 直接改磁盘即可（文件在 `P:\Tiisu_Mahjong_WEB\...`，两方共用同一份） |
+| 没 git 的一方要改文件 | 直接改磁盘即可（文件在 `E:\工程文件\TiisuMahjong\Web\...`，两方共用同一份） |
 | 改完之后 | **必须留一句话告知对方**（谁改的、动了哪些文件、为什么）。否则改动会**一直悬在工作区**，没人提交、没人知道 |
 | 没 git 的一方要不要跑校验 | **要**。校验只用 Python（`scripts/run_all.py`），与 git 无关；没 git 不等于没工具。详见 `AGENTS.md` 5.2.1 |
 | 有 git 的一方收到告知 | 先 `git pull --rebase origin main`，再 `git status` 看清**哪些是对方改的**；确认后一起提交，并在本文件追加一行，写明"这批含 X 的改动" |
@@ -114,7 +114,8 @@
 | 2026-10-03 02:0x | `dsh` | `4db0de9` | **提交审计 + 备份补齐 19 份**（CHANGELOG `261002-17`）：审计 40 个提交，发现 tar.gz 备份停在 `20261002_162815`、之后 **20 个提交零备份**（含全部引擎级改动）；按提交时间戳补出 **19 份**，口径由原备份反推（= 该提交 git 树文件 + 运行态三件套，不含 `.git`），用 `git worktree` 全程不碰主工作树，逐份验证 `winchecker.js` 与提交逐字节一致 → **ALL OK**、缺口 NONE、备份 41→59；另修本文件第 72 行**空行截断表格**与两处页脚备份名失准 | 留给 opencode：**`tarfile.add(filter=)` 对 `.git` 无效**（实测），要精确控制归档内容请逐项 add；另 **备份停摆是系统性漏做**，请在每次交付里把「落 tar.gz」当必做项 |
 | 2026-10-18 01:3x | `dsh` | `（本条）` | **役种断言覆盖补完 18→2**（CHANGELOG `261002-19`）：用探针先实测再落断言，补齐 16 个从未被断言过的役（五门齐/混老头/同高/卡七/海上月/河中鱼/海底月/和绝张/九莲宝灯/南北自通/四归一/明根/两杠子/三杠子 + 同色双老少、三双逢 不可达记录）；覆盖率 52/70 → 68/70；用例 71→85、断言 177→198 | 留给 opencode：`双双逢`/`双色双老少` 仍未命中，待查；另记 **杠是 14+杠数 口径**、`ytMeld` spec 数字在前 |
 | 2026-10-18 02:0x | `dsh` | `（本条）` | **覆盖补完 70/70 + 边张可用 + 更正上一轮错判**（CHANGELOG `261002-20`）：「双双逢/双色双老少」未命中的真因是 **optional 可选役默认禁用**（验证台会全启用，探针不会）；两者已补正向断言；`边张` 实测可用（自摸过门槛后 1 赋），把「待补」改为真断言；更正 `261002-19` 对 同色双老少/三双逢 的理由；用例 85→87、断言 198→202 | 留给 opencode：**测可选役必须在验证台里测，探针页默认关**，否则必误判 |
-| 2026-10-18 02:1x | `dsh` | `（本条）` | **仓库目录改名 Playground → Tiisu_Mahjong_WEB**（CHANGELOG `261002-21`）：停止 `server.py` 占用后重命名目录（NAS 上 `\SakuraNAS\Vol3\Playground` → `...\Tiisu_Mahjong_WEB`）；补 git `safe.directory` 两条；同步 19 个操作性文件的 50 处路径引用；历史文件（CHANGELOG 旧条目/ARCHIVE/契约归档/规则书原文）按约定保留原写法；验收 `Root: P:\Tiisu_Mahjong_WEB` 全绿 | 留给 opencode：**你本地的路径/快捷方式/脚本都要改**；另 `CHANGELOG` 旧条目里的 `P:\Playground` 是有意的历史证据，别批量改 |
+| 2026-10-18 02:1x | `dsh` | `（本条）` | **仓库目录改名 Playground → Tiisu_Mahjong_WEB**（CHANGELOG `261002-21`）：停止 `server.py` 占用后重命名目录（NAS 上 `<NAS>\Vol3\Playground` → `...\Tiisu_Mahjong_WEB`）；补 git `safe.directory` 两条；同步 19 个操作性文件的 50 处路径引用；历史文件（CHANGELOG 旧条目/ARCHIVE/契约归档/规则书原文）按约定保留原写法；验收 `Root: E:\工程文件\TiisuMahjong\Web` 全绿 | 留给 opencode：**你本地的路径/快捷方式/脚本都要改**；另 `CHANGELOG` 旧条目里的 `P:\Playground` 是有意的历史证据，别批量改 |
+| 2026-10-18 02:4x | `dsh` | `（本条）` | **NAS → 本地 E: 盘迁移 + 脱敏回退修复**（CHANGELOG `261002-22`）：权威副本改为 `E:\工程文件\TiisuMahjong\Web`（`Web` = 原 HTML/CSS/JS 版；`Dot_NET` 另放 C#）；20 个操作性文件 53 处路径引用改为 E: 盘；NAS 特有告警（AMSI/dubious ownership/网络抖动）改写为历史说明；**修掉我 `261002-21` 引入的脱敏回退**（3 处 NAS 主机名 → `<NAS>`） | 留给 opencode：**权威副本在 E:，NAS 那份已落后**；提交一律从 E: 推 |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `261002-21`（2026-10-18） · 对应备份 `backup_20261018_021441.tar.gz`
+> 页脚：文档版本 `261002-22`（2026-10-18） · 对应备份 `backup_20261018_023932.tar.gz`

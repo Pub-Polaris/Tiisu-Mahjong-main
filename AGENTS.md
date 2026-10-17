@@ -8,7 +8,7 @@ Four-player Mahjong variant with its own yaku set and "Fu-based" scoring. Pure f
 
 > **摘要**：本项目是自创规则的四人麻将实现。本文件是给自动化编码 agent 的项目契约：环境、地图、命令、验收标准与红线。
 > **面向**：所有在本仓库工作的 agent（opencode、Deepseek Harness / DSH）。
-> **基线**：代码 `P:\Tiisu_Mahjong_WEB`，文档版本 `261002-21`（2026-10-18），对应备份 `backup_20261018_021441.tar.gz`。
+> **基线**：代码 `E:\工程文件\TiisuMahjong\Web`，文档版本 `261002-22`（2026-10-18），对应备份 `backup_20261018_023932.tar.gz`。
 
 ## 零、任务执行铁律
 
@@ -69,7 +69,7 @@ Shell 为 **PowerShell 5.1**（不支持 `&&`，用 `;` 或 `cmd1; if ($?) { cmd
 
 ```powershell
 $ts = Get-Date -Format "yyyyMMdd_HHmmss"
-tar -czf "P:\Tiisu_Mahjong_WEB\backup\backup_$ts.tar.gz" --exclude=backup --exclude=logs --exclude=.git --exclude="*.zip" -C "P:\Tiisu_Mahjong_WEB" .
+tar -czf "E:\工程文件\TiisuMahjong\Web\backup\backup_$ts.tar.gz" --exclude=backup --exclude=logs --exclude=.git --exclude="*.zip" -C "E:\工程文件\TiisuMahjong\Web" .
 ```
 
 - 用「排除 `backup/` `logs/` `.git/` `*.zip` 后**整目录打包**」，而不是逐个列文件名——**新增文件不会被漏掉**（历史教训：曾因清单过时而漏备 `AGENTS.md` / `CLAUDE.md` / `AGCOMMIT_CHAIN.MD`）。
@@ -97,13 +97,13 @@ netstat -ano | Select-String ":7777" | Select-String "LISTENING"
 ### 2.3 一键校验（改完必跑）
 
 ```powershell
-cmd /c P:\Tiisu_Mahjong_WEB\scripts\run_all.cmd
+cmd /c E:\工程文件\TiisuMahjong\Web\scripts\run_all.cmd
 ```
 
 或直接用 Python 版（推荐，避免 Windows AMSI 在 PowerShell 读网络盘脚本时崩溃）：
 
 ```powershell
-python P:\Tiisu_Mahjong_WEB\scripts\run_all.py --runs 2
+python E:\工程文件\TiisuMahjong\Web\scripts\run_all.py --runs 2
 ```
 
 它依次跑三件事并打印汇总（`ALL CHECKS PASSED` / `SOME CHECKS FAILED`，退出码 0/1）：
@@ -146,20 +146,20 @@ Select-String -Path "$env:TEMP\x.html" -Pattern 'class="tile clickable"' | Measu
 |---|---|
 | 远程仓库 | `https://github.com/Pub-Polaris/Tiisu-Mahjong-main`（公开，MIT） |
 | 默认分支 | `main` |
-| 本地仓库 | `P:\Tiisu_Mahjong_WEB\.git`（实际落在 `<NAS>\Vol3\Tiisu_Mahjong_WEB\.git`） |
+| 本地仓库 | `E:\工程文件\TiisuMahjong\Web\.git`（本地盘，已脱离网络路径） |
 | 提交身份 | 仓库级 `Pub-Polaris` / `Pub-Polaris@users.noreply.github.com` |
 | 提交历史 | `8a3eb4d` 初始化；`f29bffb` 合并远端 `Initial commit`（保留 LICENSE） |
 
 **`.gitignore` 排除项**（不入库）：`backup/`、`logs/`、`state.json`、`settings.json`、`*.zip`。入库体积约 0.54 MB。
 
-> 本机前置：仓库在网络路径上，git 会报 `dubious ownership`，需先执行
-> `git config --global --add safe.directory "%(prefix)///<NAS>/Vol3/Tiisu_Mahjong_WEB"`。
+> **历史说明**：仓库原先放在 NAS 网络路径上，git 会报 `dubious ownership`、需加 `safe.directory`；
+> 现已迁到本地 `E:` 盘，**不再需要**。
 > 推送走 HTTPS（凭据已存于凭据管理器）；**SSH 22 端口在本网络被拒，不要用 SSH**。
 
 **每次改动后**：
 
 ```powershell
-cd P:\Tiisu_Mahjong_WEB
+cd E:\工程文件\TiisuMahjong\Web
 git add -A
 git commit -m "简述改了什么"
 git push origin main
@@ -170,7 +170,7 @@ git push origin main
 ## 三、仓库结构
 
 ```
-P:\Tiisu_Mahjong_WEB\
+E:\工程文件\TiisuMahjong\Web\
 ├── AGENTS.md          本文件（根目录，agent 契约）
 ├── CLAUDE.md          指向 AGENTS.md 的兼容入口
 ├── run.cmd            启动脚本（探测 Python → 开浏览器 → 起服务器）
@@ -231,7 +231,7 @@ P:\Tiisu_Mahjong_WEB\
 - **注释用白话导读**：文件顶部写"这个文件干什么、关键流程"，关键函数上方一行白话解释；不逐行注释，不复述代码。
 - **术语统一**：赋（不是番）、点、岭上(马)、赐马、跳墩、王堆、门风、场风、役牌、门清、副露、食降、可选役。
 - **牌记号**：`123m456p789s1122z`（`m`万 `p`饼 `s`索 `z`字；字牌 1z东 2z南 3z西 4z北 5z白 6z发 7z中）。
-- **路径统一**：`P:\Tiisu_Mahjong_WEB\...`。
+- **路径统一**：`E:\工程文件\TiisuMahjong\Web\...`。
 - **文档格式**：遵循 `docs/北极星_(人类)/文档模板.md`（标题+摘要+面向+基线+目录+状态表+编号章节+页脚）。
 - **状态用词**：已实现 / 部分 / 未实现 / 已修复 / 有意不补（不使用 emoji）。
 - **文件格式**：末尾恰好一个换行；不使用 BOM。
@@ -244,7 +244,7 @@ P:\Tiisu_Mahjong_WEB\
 ### 5.1 一键校验（首选）
 
 ```powershell
-python P:\Tiisu_Mahjong_WEB\scripts\run_all.py --runs 2      # 或 cmd /c P:\Tiisu_Mahjong_WEB\scripts\run_all.cmd
+python E:\工程文件\TiisuMahjong\Web\scripts\run_all.py --runs 2      # 或 cmd /c E:\工程文件\TiisuMahjong\Web\scripts\run_all.cmd
 ```
 
 | 步骤 | 断言内容 |
@@ -274,7 +274,7 @@ python P:\Tiisu_Mahjong_WEB\scripts\run_all.py --runs 2      # 或 cmd /c P:\Tii
 
 **宣布"通过 / 全绿"时，必须同时给出可复核的证据**，不能只给结论。最低要求：
 
-1. **完整命令**：实际敲的那一条（例：`python P:\Tiisu_Mahjong_WEB\scripts\run_all.py --runs 2`）。
+1. **完整命令**：实际敲的那一条（例：`python E:\工程文件\TiisuMahjong\Web\scripts\run_all.py --runs 2`）。
 2. **原始输出**：把关键行**原样贴出** —— 断言页的 `PASS n/n 断言 · m 用例` 与末行 `ALL CHECKS PASSED`（或 `SOME CHECKS FAILED` + 失败项）。
 3. **不要只写**"全绿"、"yaku 133/133、engine 73/73"这类**无来源的结论**；数字必须能在输出里逐字对上。
 4. **没跑就说没跑**：若因环境（无网络盘、服务未启动等）无法执行，须**明说"未验证"**并给出原因，不得默认"应该没问题"。

@@ -2,7 +2,7 @@
 #  run_engine_test.ps1 - Tiisu Mahjong engine-rule assertions
 #
 #  Usage:
-#    powershell -NoProfile -ExecutionPolicy Bypass -File P:\Tiisu_Mahjong_WEB\scripts\run_engine_test.ps1
+#    powershell -NoProfile -ExecutionPolicy Bypass -File E:\工程文件\TiisuMahjong\Web\scripts\run_engine_test.ps1
 #    powershell ... -File scripts\run_engine_test.ps1 -Port 7777 -NoStart
 #
 #  What it does:

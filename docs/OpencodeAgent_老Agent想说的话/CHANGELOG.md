@@ -53,8 +53,55 @@
 | 261002-19 | 2026-10-18 | **役种断言覆盖补完（18→2）** | 补齐此前从未被断言过的 16 个役：五门齐/混老头/同高/卡七/海上月/河中鱼/海底月/和绝张/九莲宝灯/南北自通/四归一/明根/两杠子/三杠子 + 同色双老少、三双逢 的不可达记录；覆盖率 52/70 → **68/70**；仍缺 双双逢、双色双老少（待查） |
 | 261002-20 | 2026-10-18 | **覆盖补完 70/70 + 边张可用 + 更正 261002-19 的错判** | 查明「双双逢/双色双老少」未命中是因它们是 **optional 可选役默认禁用**（验证台会全部启用）；双双逢、双色双老少 均补正向断言；`边张` 实测**可用**（自摸过门槛后正常 1 赋），把「待补」改为真断言；更正 261002-19 对 同色双老少/三双逢 的理由 |
 | 261002-21 | 2026-10-18 | **仓库改名 Playground → Tiisu_Mahjong_WEB** | 目录重命名 + git `safe.directory` 补两条 + 19 个操作性文件 50 处路径同步；历史文件按约定保留旧写法；验收 Root 显示新路径且全绿 |
+| 261002-22 | 2026-10-18 | **仓库迁到本地 E: 盘（脱离 NAS）** | 权威副本 `E:\工程文件\TiisuMahjong\Web`；20 文件 53 处引用改为 E 盘；NAS 告警改历史说明；顺修 `261002-21` 引入的 3 处脱敏回退 |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-22 — 仓库迁到本地 E: 盘（2026-10-18）
+
+**主题**：北极星决定把项目从 NAS 搬到本地盘，布局为
+
+    E:\工程文件\TiisuMahjong\
+      Web\       ← 原 HTML/CSS/JS 版本（即本仓库，含 .git）
+      Dot_NET\   ← 后续 C# 实现
+
+所有「基于 NAS 的引用」改为指向 `E:\工程文件\TiisuMahjong\Web`。
+
+### 一、为什么搬
+
+- NAS 上跑 `dotnet restore/build` 既慢又容易出错（交接文档也明确「不要在 NAS 上跑 dotnet」）。
+- 网络路径带来过真实问题：git `dubious ownership`、PowerShell 解析网络共享脚本触发 **AMSI 崩溃**、偶发读文件失败。
+
+### 二、改了什么
+
+| 类别 | 数量 |
+|---|---|
+| 路径引用（`P:\...` / `<NAS>\Vol3\...` → `E:\工程文件\TiisuMahjong\Web`） | **53 处 / 20 个文件** |
+| NAS 特有告警改写为「历史说明」 | 4 处（`AGENTS.md` 的 safe.directory、`已知坑` 的 AMSI、`工具调用说明` 的嵌套 PowerShell、`给北极星的信` 的网络路径） |
+
+**有意不改**：`CHANGELOG` 旧条目、`CHANGELOG_ARCHIVE`、`契约_原AGENT.md_未规范状态.md`、规则书原文 ——
+按项目约定「历史文件保持当时写法」。
+
+### 三、顺带修复：我自己造成的脱敏回退
+
+`261002-21`（改名那条）在链条与 CHANGELOG 里又把 NAS 主机名写了回去（3 处）——
+这是对 2026-10-03 那次历史脱敏的**回退**。本轮已全部改回 `<NAS>`。
+教训：**脱敏后新写的文档也要过一遍敏感串检查**，不能只查老文件。
+
+### 四、对协作的影响
+
+- **权威副本变了**：`E:\工程文件\TiisuMahjong\Web`。NAS 上那份（`P:\TiisuMahjong\Web`）**已落后**，不再是准的。
+- 本地盘克隆**不需要** `git config --global --add safe.directory`。
+- 提交与推送一律从 `E:` 盘进行。
+
+### 五、验收
+
+    Root: E:\工程文件\TiisuMahjong\Web
+    YAKUTEST: PASS 202/202 断言 · 87 用例
+    ENGINETEST: PASS 73/73 断言 · 18 用例
+    ALL CHECKS PASSED
+
 ---
 
 ## 261002-21 — 仓库目录改名（2026-10-18）
@@ -66,9 +113,9 @@
 
 1. **先停线程**：停掉占用 7777 的 `server.py`（PID 7344）、确认无无头 Edge 残留、文件无占用。
 2. **重命名目录**：`P:\Playground` → `P:\Tiisu_Mahjong_WEB`
-   （NAS 实体路径 `\\SakuraNAS\Vol3\Playground` → `\\SakuraNAS\Vol3\Tiisu_Mahjong_WEB`）。
+   （NAS 实体路径 `<NAS>\Vol3\Playground` → `<NAS>\Vol3\Tiisu_Mahjong_WEB`）。
 3. **补 git 白名单**：改名后 git 报 `dubious ownership`，新增
-   `%(prefix)///SakuraNAS/Vol3/Tiisu_Mahjong_WEB` 与 `P:/Tiisu_Mahjong_WEB` 两条
+   `%(prefix)///<NAS>/Vol3/Tiisu_Mahjong_WEB` 与 `P:/Tiisu_Mahjong_WEB` 两条
    `safe.directory`（旧的两条保留，无副作用）。
 4. **同步路径引用**：19 个**操作性**文件共 **50 处** `P:\Playground` → `P:\Tiisu_Mahjong_WEB`。
 5. **有意不改**（项目约定：历史文件保持当时写法）：
