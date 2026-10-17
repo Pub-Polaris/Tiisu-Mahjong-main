@@ -8,7 +8,7 @@ Four-player Mahjong variant with its own yaku set and "Fu-based" scoring. Pure f
 
 > **摘要**：本项目是自创规则的四人麻将实现。本文件是给自动化编码 agent 的项目契约：环境、地图、命令、验收标准与红线。
 > **面向**：所有在本仓库工作的 agent（opencode、Deepseek Harness / DSH）。
-> **基线**：代码 `P:\Playground`，文档版本 `261002-17`（2026-10-03），对应备份 `backup_20261002_222125.tar.gz`。
+> **基线**：代码 `P:\Playground`，文档版本 `261002-18`（2026-10-03），对应备份 `backup_20261018_012309.tar.gz`。
 
 ## 零、任务执行铁律
 
@@ -324,6 +324,7 @@ python P:\Playground\scripts\run_all.py --runs 2      # 或 cmd /c P:\Playground
 4. 若改设置键：同步 `server.py` 的 `DEFAULT_SETTINGS` + `portal.html` + `debug.html`。
 5. 若改役种：`ike.json`（数据）与 `src/winchecker.js` 的 `conditionFn`（判定）**必须配套**。
 6. **不得对仓库重新 `git init` 或强推覆盖历史**。远程为 `Pub-Polaris/Tiisu-Mahjong-main`（`main` 分支），其 `Initial commit`（MIT LICENSE）必须保留；与远端不一致时用 fetch + merge 解决。版本载体为 **git 提交 + `backup/*.tar.gz` 双轨**，两者都不得移除。
+   > **唯一例外（北极星 2026-10-03 明确授权）**：为清除本机用户名与 NAS 主机名，对全部提交做过一次历史重写 + 强推，详见根目录 `SENSITIVE-HISTORY-NOTE.txt`。该次之后**一律恢复本红线**：不得再强推。
 7. **提交与交付**：一次改动的"交付"= 跑完 `run_all.py` 全绿 → 追加 CHANGELOG → 同步受影响文档与页脚 → 落一份 `backup_*.tar.gz` → **`git commit` 并 `git push origin main`**。只提交不推送（或只备份不提交）都算未交付。**交付说明里必须附 5.2.1 要求的校验证据**（命令 + 原始输出）。
 
 8. **每个提交带双 trailer + 链条登记**：commit message 末尾加两行 —— `Agent: <who>`（`dsh` / `opencode` / `北极星`）与 `Pair: dsh+opencode`；`git log --grep='^Agent:'` 可筛选任一方。同时在根目录 `AGCOMMIT_CHAIN.MD` **追加一行摘要**（时间 / Agent / commit / 改了什么 / 留给谁）；该文件**只追加、不回改别人的行**，且**不进"必读清单"**（按需查，避免会话成本随提交数增长）。**推之前先 `git pull --rebase origin main`**：远程已有他人提交时用 rebase，**不要** `--force`。 别人提交后，把链条里上一行的 `（本条）` 回填成真实 hash（规则 8）。
