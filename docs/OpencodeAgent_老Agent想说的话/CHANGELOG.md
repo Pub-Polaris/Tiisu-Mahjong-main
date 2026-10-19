@@ -79,6 +79,7 @@
 | 261002-46 | 2026-10-20 | **C：界面骨架 + 设计交接模板** | `Screen`/`ScreenHost`（屏切换 + 150ms 淡入 + 输入换算）、`UiLayout` 数据驱动布局、`TableScreen`/`MenuScreen`；`Assets/layout/menu.json`；`DESIGN_SPEC.md`（画布/元素/状态/资源/动画的交接模板）；`--render` 可指定屏 |
 | 261002-47 | 2026-10-20 | **混合外壳：WebView2 承载现有 UI + C# 引擎一次换完** | `NET/src/Tiisu.Shell`（WinForms + WebView2，`tiisu.local` 虚拟主机直接加载 `Web/`，`/api/*` 由 C# 拦截应答，不再起 Kestrel/Python）；`EngineHost` 用同步 host object 接管 19 个引擎方法；`Web/js/host_adapter.js` 贴着原 UI 用镜像对象；数据目录迁 `%APPDATA%\TiisuMahjong`；整页缩放适配；框架依赖发布 + NSIS 安装包（不写注册表），安装/启动/卸载实测通过 |
 | 261002-48 | 2026-10-20 | **补齐：业务逻辑真正迁进 C#（判定/听牌/AI）** | 北极星发现安装包里 `Web/src` 还带着 `engine.js`(100KB)/`winchecker.js`(61.7KB)/`aiPlayer.js`/`tenpai.js`/`handAnalyzer.js`；本轮把 `checkWin/conditionFn/optionalEnabled/listTenpai/getAIDiscardIndex` 桥到 C#，`index.html` 改条件加载，发布排除 5 个 JS；**手牌分析条按决定删除**；安装后 `Web/src` 只剩 `tiles/uuid/notation/logRender`，安装版 `--smoke` PASS |
+| 261002-49 | 2026-10-20 | **安装包升级清理旧版遗留 JS** | NSIS 覆盖安装不会删旧文件，旧版装过的机器上 `Web/src/engine.js` 等 5 个业务 JS 会残留；安装器在解包前 `Delete` 这 5 个路径。用「模拟旧版目录 + 覆盖安装」实测：残留全部清除、新文件就位 |
 
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
@@ -306,6 +307,18 @@ Skia 那套（`src/Tiisu.App`）降级为「将来特效层基础」，不算废
 - **逻辑**：全在 C#（`Tiisu.Core` 判役 / `Tiisu.Engine` 状态机+AI / `Tiisu.Shell` 宿主）
 - **安装包里的 JS**：只剩纯工具与表现层（`tiles.js` 牌定义、`notation.js` 记号、`uuid.js`、`logRender.js` 汉字渲染）
 - 浏览器版（`Web/`）仍可用完整 JS 引擎 —— 两条路互不影响
+
+---
+
+## 261002-49 — 安装包升级清理旧版遗留 JS（2026-10-20）
+
+`261002-48` 把业务 JS 从发布里剔除后，**已经装过旧版的机器**仍会留着
+`Web/src/{engine,winchecker,aiPlayer,tenpai,handAnalyzer}.js`——NSIS 是覆盖复制，不删旧文件。
+
+修复：`installer.nsi` 在 `File /r` 之前对这 5 个路径做 `Delete`。
+
+验证（模拟升级）：先造一个含 5 个业务 JS 的旧目录 → 新安装包 `/S /D=` 覆盖安装 →
+`Web/src` 只剩 `logRender/notation/tiles/uuid`，5 个旧文件确认不存在，exe 已替换为新版本。
 
 ---
 
