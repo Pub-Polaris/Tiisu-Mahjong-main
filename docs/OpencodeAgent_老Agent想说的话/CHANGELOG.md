@@ -76,6 +76,7 @@
 | 261002-43 | 2026-10-20 | **M3：C# API 替换 server.py + 日志改 JSONL** | `NET/src/Tiisu.Api`（Minimal API，7778）镜像 settings/state/stats/log/chrlog/roundlog/round_end；`server.py` 与 `engine.js` 同步改：日志落 `logs/<session>/round_NNN_p<idx>_<uuid>/events.jsonl`（**零 CJK**），汉字只在 `src/logRender.js` 生成 + `logview.html` 查看；**API 对等 22/22 PASS**，Api 测试 7 条 |
 | 261002-44 | 2026-10-20 | **M2c 引擎自走完成（C# 能自己打完整场）** | 新增 `IRandomSource`/`Mulberry32Random`、`TileSetFactory`（136 牌/洗牌/掷骰/定庄/切牌）、`RoundDealFactory`、`SelfPlayDriver`（586 行）、事件日志与 SHA256；引擎加法式改动（`RoundDeal.WallOrder`/`DrawFromWall`/可选随机源），回放路径不变；**200 场种子自走全通**（785 局、和牌率 97.5%），Engine 测试 18→32 |
 | 261002-45 | 2026-10-20 | **A：WinForms 工程入仓 + 真实牌面 + 单文件发布** | `NET/src/Tiisu.App`（net10.0-windows10.0.19041，SKControl 单控件自绘，引用 Core+Engine）；牌面由 `Web/scripts/export_tiles.py` 把 34 张 SVG 栅格化成雪碧图（`Assets/tiles.png` 117 KB）；`--render` 离屏出图、`--bench` 217fps、`dotnet publish` 单文件 155 MB 且能跑 |
+| 261002-46 | 2026-10-20 | **C：界面骨架 + 设计交接模板** | `Screen`/`ScreenHost`（屏切换 + 150ms 淡入 + 输入换算）、`UiLayout` 数据驱动布局、`TableScreen`/`MenuScreen`；`Assets/layout/menu.json`；`DESIGN_SPEC.md`（画布/元素/状态/资源/动画的交接模板）；`--render` 可指定屏 |
 
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
@@ -162,6 +163,42 @@ TFM 必须是 **`net10.0-windows10.0.19041`**（`SkiaSharp.Views.WindowsForms` �
   若只要框架依赖版（需装 .NET 10 Runtime）可降到 ~30 MB。
 - 发布目录里还有 `libSkiaSharp.pdb` 等调试符号（非必需，可删）。
 - `KeyCode`/窗口截图在发布版上未取到（前台被浏览器抢占），但 `--render` 已证明渲染链路可用。
+
+---
+
+## 261002-46 — C：界面骨架 + 设计交接模板（2026-10-20）
+
+### 一、骨架
+
+| 文件 | 内容 |
+|---|---|
+| `Ui/Screen.cs` | 屏幕基类（1280×720 逻辑坐标；`Draw/Update/OnPointerMove/OnClick/OnKey`） |
+| `Ui/ScreenHost.cs` | 唯一控件：DPI/letterbox、输入换算、屏切换（150ms 黑场淡入） |
+| `Ui/Screens.cs` | `TableScreen`（复用 BoardScene + 菜单提示）、`MenuScreen`（JSON 布局 + hover） |
+| `Ui/Layout.cs` | `UiLayout` / `LayoutElement`：`rect/text/tile/button/image` 数据驱动 |
+| `Assets/layout/menu.json` | 菜单屏版式（改版式只改这个文件） |
+| `DESIGN_SPEC.md` | **给北极星的设计交接模板** |
+
+### 二、交互
+
+- `M`：牌桌 ↔ 菜单；`Esc`：菜单里回牌桌、牌桌上退出；鼠标 hover/click 命中测试。
+- `--render <png> [time] [table|menu]`：任意屏都能离屏出图。
+
+### 三、验收
+
+| 项 | 结果 |
+|---|---|
+| `dotnet build Tiisu.slnx` | 0 警告 0 错误 |
+| `--render ... table` | 1280×720，牌桌 + 真实牌面 + 左上操作提示 |
+| `--render ... menu` | 菜单屏完全由 `menu.json` 渲染（标题/三张 7 示例牌/三个按钮） |
+| `--bench 300` | 平均 4.68 ms/帧（213 fps） |
+
+### 四、设计交接
+
+`DESIGN_SPEC.md` 写明了：画布尺寸、屏幕清单、元素 JSON 格式、五种交互状态、
+需要你提供的资源（牌背/立绘/背景/动效帧）、动画与转场参数、落地流程。
+
+**原则：版式走数据，逻辑走代码。** 同一屏的坐标改动不碰 `.cs`。
 
 ---
 

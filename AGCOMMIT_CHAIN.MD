@@ -137,6 +137,7 @@
 | 2026-10-20 01:5x | `dsh` | `（本条）` | **M2b AI 决策 + M3 C# API/日志 JSONL**（CHANGELOG `261002-42/43`）：决策语料 4796 条 0 差异；`Tiisu.Api` 镜像全部端点，API 对等 **22/22**；日志落 JSONL **零 CJK**，汉字只在 `logRender.js`；旧日志已删不迁移 | 留给 opencode：**日志存储不含汉字是硬要求**，显示层才生成中文 |
 | 2026-10-20 02:1x | `dsh` | `（本条）` | **M2c 引擎自走完成**（CHANGELOG `261002-44`）：种子随机源/洗牌/发牌/自走驱动 1280 行；加法定庄与切牌照 `engine.js`；**200 场自走全通**、12,242 个逐步不变量全过、同种子哈希一致；Engine 测试 18→32 | 留给 opencode：**抢杠与推牌流局在自走里未触发**，属已知范围外 |
 | 2026-10-20 02:4x | `dsh` | `（本条）` | **A：WinForms 入仓 + 真实牌面 + 单文件发布**（CHANGELOG `261002-45`）：`NET/src/Tiisu.App` 单 SKControl 自绘；SVG→雪碧图 117KB；`--bench` 217fps；单文件 155MB 可跑 | 留给 opencode：**TFM 必须 net10.0-windows10.0.19041**，否则 SkiaSharp WinForms 资产不匹配 |
+| 2026-10-20 03:1x | `dsh` | `（本条）` | **C：界面骨架 + 设计交接模板**（CHANGELOG `261002-46`）：`Screen`/`ScreenHost` + 数据驱动 `UiLayout` + TableScreen/MenuScreen；`DESIGN_SPEC.md` 交接模板；`--render` 支持指定屏 | 留给 opencode：**版式走 `Assets/layout/*.json`，不要硬编码坐标到 .cs** |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `261002-45`（2026-10-20） · 对应备份 `backup_20261020_021218.tar.gz`
+> 页脚：文档版本 `261002-46`（2026-10-20） · 对应备份 `backup_20261020_021358.tar.gz`
