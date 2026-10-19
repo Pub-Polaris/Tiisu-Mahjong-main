@@ -1,13 +1,15 @@
 # 参考：明星三缺一 2002（IGS）实现分析
 
-> **来源**：对 `G:\IGJMJ02`（IGS《明星三缺一 2002》）的只读逆向分析，2026-10-20。
+> **来源**：对 `G:\IGJMJ02`（IGS《明星三缺一 2002》）的只读逆向分析，2026-10-20（含当日两轮补正）。
 > **完整产物**（未入库，体积大）：`E:\工程文件\TiisuMahjong\analysis\igs\`
-> —— `evidence/`（帧还原 PNG/GIF、hexdump、反汇编）、`scripts/`（可复现脚本）。
+> —— `evidence/`（帧还原 PNG/GIF、hexdump、反汇编、FPU 普查）、`scripts/`（30 个可复现脚本）。
 > **只做技术分析，不重分发游戏素材。**
 
 > 目标目录：`G:\IGJMJ02`（只读分析，未修改任何文件）
 > 产物目录：`E:\工程文件\TiisuMahjong\analysis\igs\`
 > 日期：2026-10-20
+>
+> ⚠️ 说明：分析期间该目录里的 `IGSMJ_P.SAV`（10,376 B）在 2026-10-20 00:27 被写过一次 —— 那是**当时正在运行的 `igsmj2.exe`（PID 8736，00:13 启动）自己写的存档/配置**，不是本分析所为。本次分析对 `G:\` 全程只读，所有写入都在 `E:\工程文件\TiisuMahjong\analysis\igs\`。
 
 ---
 
@@ -37,7 +39,7 @@ igsmj2.exe (2002-02-01, PE32 GUI, 638 KB)
  ├─ ace.dll    → 130 个 ACE_* 符号（网络框架，见结论 1）
  └─ MSVCRT/MSVCP60
 ```
-**没有** `d3d8.dll` / `d3dx` / `glide` / `opengl32`，**也没有** `sin/cos/sqrt/pow` 这些数学函数导入（详见 §3.4）。所以运行时不可能做 3D 变换。
+**没有** `d3d8.dll` / `d3dx` / `glide` / `opengl32`。`sin/cos/sqrt` 也没有从 CRT 导入，但这**不能**当作「没做三角函数」的证据（可内联成 `FSIN/FSQRT` 或自建表）—— 实测见 §3.5：全 exe 只有 274 条 x87、一张 360 项角度表 + 一个画圆例程，没有 3D 数学量级。
 
 ---
 
@@ -55,6 +57,7 @@ igsmj2.exe (2002-02-01, PE32 GUI, 638 KB)
 | `scripts/flc_validate.py` / `flc_chain.py` / `flc_decode.py` / `flc_export.py` | FLI/FLC 结构验证与帧还原 |
 | `scripts/pcdata_export.py` / `mj_detail.py` / `mj_groups.py` / `mj_families.py` | PCDATA01 图集解码、分组、拼图导出 |
 | `scripts/final_checks.py` / `export_evidence.py` | 数学导入检查、map BMP 解码、GIF/拼图导出 |
+| `scripts/fpu_check.py` / `fpu_check2.py` | **FPU 初始化调用者追踪 + 全 exe x87 指令普查 + 三角函数点定位**（`evidence/fpu_check*.txt`） |
 
 复现：`python scripts\<脚本>.py`（需要 `pefile pillow capstone`）。
 
@@ -115,11 +118,68 @@ ord 20 ??0ACE_Activation_Queue@@QAE@PAV?$ACE_Message_Queue@...
 ```
 `ACE_wrappers` 是 ACE 的官方目录名，`tcchou` 是 IGS 那位编译者的 Windows 用户名。**这 DLL 就是 ACE 5.x 用 MSVC 编出来的私有构建**。
 
-### 3.5 有没有 3D 数学痕迹？
+### 3.5 有没有 3D 数学痕迹？（**含 2026-10-20 补正**）
 
-- `ace.dll`：无 `sin/cos/matrix/quaternion/texture` 相关字符串，无图形导入 → 无。
-- `igsmj2.exe`：**连 `sin`/`cos`/`sqrt`/`pow` 都没有导入**（脚本 `final_checks.py` 枚举全部 13 个 DLL 的导入名，`MATH` 列表命中 0 个）。浮点只导入了 `_ftol`（float→int）与 `_controlfp`/`_adjust_fdiv`（FPU 初始化）。
-  → **引擎内部没有任何三角函数/开方调用**；一个实时 3D 管线不可能这样。
+> 补正说明：本节初版写的是「没导入 sin/cos/sqrt/pow → 引擎没有三角函数 → 不可能跑 3D」。**这个推理过强**：编译器可以把 `sqrt` 内联成 `FSQRT`，三角函数也可以自己建表或用内联汇编，**都不会在导入表里留下痕迹**。以下是重做的实测（`scripts/fpu_check.py`、`fpu_check2.py`，结果在 `evidence/fpu_check.txt`、`evidence/fpu_check2.txt`）。
+
+**(a) `ace.dll`**：无 `sin/cos/matrix/quaternion/texture` 相关字符串，无任何图形导入 → 与渲染无关。
+
+**(b) `igsmj2.exe` 的浮点总量**：整个 `.text`（约 540 KB 代码）里 x87 指令**总共只有 274 条**：
+
+```
+fld 61   fmul 57   fild 47   fstp 39   fnstsw 16   fcomp 13   fst 8
+fsub 8   fadd 6    fdiv 4    fcom 3    fiadd 2     fdivr 2    fxch 2
+fchs 1   fsqrt 1   fsin 2    fcos 2
+fptan/fpatan/f2xm1/fyl2x/fprem/fscale = 0
+```
+
+**(c) 这 5 条 `fsin/fcos/fsqrt` 全部集中在 2 处，且都是 2D 用途**：
+
+1. **启动时建 360 项 sin/cos 表**（0x40B5ED，见 `evidence/fpu_check2.txt`）：
+   ```asm
+   ; for (esi = 0; esi < 0x168 (=360); esi++)
+   fild  [esp+8]              ; i
+   fmul  qword [0x485668]     ; × 0.0174532922222 = π/180  ← 角度→弧度
+   fld   st(0)
+   fsin                       ; sin(θ)
+   fmul  qword [0x485660]     ; × 65535.0             ← 16.16 定点
+   call  0x47DDB0             ; _ftol
+   mov   [esi*4 + 0x6379E0], eax        ; sinTable[360]
+   fcos                       ; cos(θ)
+   fmul  qword [0x485660]
+   call  0x47DDB0             ; _ftol
+   mov   [esi*4 + 0x637440], eax        ; cosTable[360]
+   ```
+   常量已读出：`0x485660 = 65535.0`、`0x485668 = 0.0174532922222 (=π/180)`、`0x485680 = 0.0021816615 (=2π/2880)`。
+   → **一张 360 项、16.16 定点的角度表**，典型 1990s 2D 做法。
+
+2. **2D 定点旋转 / 圆周计算**：
+   - `0x40D081`：`fild(dx²+dy²) → fsqrt → _ftol`，随后用 `2π/2880` 步进 `fcos/fsin` 求圆周点 → **圆/椭圆光栅化**（圆形高亮、圆环一类）。
+   - `0x410422` / `0x410DB3`：`cos = cosTable[angle]; sin = sinTable[angle];` 取图片结构里的 `w=[eax+2]`、`h=[eax+4]`，再 `imul … sar 16` → **把一个矩形四角按角度旋转（16.16 定点）**。这就是 `~(DisplayRotary)` 的实现：**平面内任意角度旋转一张精灵**（2D，不是 3D）。
+
+**结论**：引擎确实有三角函数，但只有「**一张 360 项角度表 + 2D 旋转 + 画圆**」这一点点；**没有矩阵/四元数/相机/透视投影所需的数学量级**。对比：真 3D 管线光「每顶点变换 + 光照」就是每顶点几十条 FP 指令、成千上万条 FP 代码，而这里全 exe 只有 274 条 x87。
+
+**(d) 因此判断「不是 3D」靠的是正面证据，不是导入表**：
+
+| 证据类型 | 具体 |
+|---|---|
+| 图形 API | 只有 `DDRAW!DirectDrawCreate`（2D Blitter）；无 D3D/Glide/OpenGL |
+| 素材本体 | 片头=FLI 帧序列（272/55 帧）；旋转牌=17 张预渲染帧；牌=整张烘焙位图 ×2 朝向 ×9 LOD；桌面=16bpp 整屏图（全部已解码，见 §4/§5/§6） |
+| 数据 | 资源包里没有顶点/索引/纹理坐标/材质；只有调色板 + 压缩位图 + 帧表 |
+| 代码量 | FP 指令 274 条、触发函数 2 处（角度表 + 画圆） |
+
+### 3.5b `_controlfp` / `_adjust_fdiv` 是什么（FPU 初始化的意义）
+
+这三/四个符号**不是游戏代码，是 MSVC 6.0 静态 CRT 的启动样板**：
+
+```
+0x47DFB6  push 0x30000        ; _MCW_PC   = 精度控制字段
+0x47DFBB  push 0x10000        ; _PC_53    = 53-bit 尾数
+0x47DFC0  call 0x47DFD2       ; → jmp [_controlfp]
+```
+即 `_controlfp(_PC_53, _MCW_PC)` —— CRT 的 `_setdefaultprecision`，由 `_cinit` / `mainCRTStartup`（0x47DE40：`__set_app_type` → … → `_initterm` → main）调用一次。作用：把 x87 控制字的精度字段设成 **53-bit**（并默认屏蔽所有 FP 异常），使 C 的 `double` 运算、`_ftol`、后续 `_fpreset`/`_controlfp` 行为符合 MSVC 预期。`_adjust_fdiv` 是 MSVC 5/6 针对 Pentium FDIV 精度问题的除法补偿初始化（随 float 支持 obj 链进来；实测**没有任何 `call/jmp [IAT]` 引用点**，纯链接产物）。`_ftol` 通过 0x47DDB0 的 thunk 暴露，游戏代码在 `(int)(sin*65535)` 这类地方显式调用。
+
+**意义评估**：这类符号在**任何** MSVC 6 程序里都有（哪怕全程序零浮点算法、只要静态链接 CRT 就会带），**对「是否用 3D」没有任何判别力**。所以初版拿「没有数学导入」当证据是错的；正确表述是「有 274 条 x87、只有角度表和画圆」。
 
 ### 3.6 结论
 
@@ -430,6 +490,8 @@ evidence/
 ├─ mj_groups.txt            ★ mj.rom 533 张图按尺寸分组（对账）
 ├─ mj_families.txt          各图族的拼图索引
 ├─ final_checks.txt         数学函数导入检查、map BMP 头、mainmenu 背景解码
+├─ fpu_check.txt            ★ FPU 初始化导入的引用点 + x87 指令普查（274 条）
+├─ fpu_check2.txt           ★ fsin/fcos/fsqrt 全部位置与上下文（360 项角度表、画圆）
 ├─ export_stats.txt         GIF/拼图/导出统计
 ├─ pk0_probe.txt            PK0 的已知/未知（诚实记录）
 └─ png/
