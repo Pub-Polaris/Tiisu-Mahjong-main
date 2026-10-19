@@ -75,6 +75,7 @@
 | 261002-42 | 2026-10-20 | **M2b AI 决策移植完成（4796 条 0 差异）** | 新增 `scripts/ai_golden.html` + `gen_ai_golden.py`（决策语料：状态+随机值→决策，4796 条：discard 958 / kan 959 / meld 945 / ron 958 / tsumo 976）；`NET/src/Tiisu.Engine/AiPlayer.cs` 784 行纯函数；0 差异，Engine 测试 15→18 |
 | 261002-43 | 2026-10-20 | **M3：C# API 替换 server.py + 日志改 JSONL** | `NET/src/Tiisu.Api`（Minimal API，7778）镜像 settings/state/stats/log/chrlog/roundlog/round_end；`server.py` 与 `engine.js` 同步改：日志落 `logs/<session>/round_NNN_p<idx>_<uuid>/events.jsonl`（**零 CJK**），汉字只在 `src/logRender.js` 生成 + `logview.html` 查看；**API 对等 22/22 PASS**，Api 测试 7 条 |
 | 261002-44 | 2026-10-20 | **M2c 引擎自走完成（C# 能自己打完整场）** | 新增 `IRandomSource`/`Mulberry32Random`、`TileSetFactory`（136 牌/洗牌/掷骰/定庄/切牌）、`RoundDealFactory`、`SelfPlayDriver`（586 行）、事件日志与 SHA256；引擎加法式改动（`RoundDeal.WallOrder`/`DrawFromWall`/可选随机源），回放路径不变；**200 场种子自走全通**（785 局、和牌率 97.5%），Engine 测试 18→32 |
+| 261002-45 | 2026-10-20 | **A：WinForms 工程入仓 + 真实牌面 + 单文件发布** | `NET/src/Tiisu.App`（net10.0-windows10.0.19041，SKControl 单控件自绘，引用 Core+Engine）；牌面由 `Web/scripts/export_tiles.py` 把 34 张 SVG 栅格化成雪碧图（`Assets/tiles.png` 117 KB）；`--render` 离屏出图、`--bench` 217fps、`dotnet publish` 单文件 155 MB 且能跑 |
 
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
@@ -116,6 +117,51 @@
 3. **抢杠未模拟**：既有 `DoKan` 不重跑 `checkRobKan`（回放由事件给结局），自走也未插入该判定。
    若要补齐需单独决策（会改 `DoKan` 的加法接口）。
 4. 推牌流局（九种九牌/十三不靠）AI 不主动触发，与 JS 全 AI 行为一致。
+
+---
+
+## 261002-45 — A：WinForms 工程入仓 + 真实牌面 + 单文件发布（2026-10-20）
+
+### 一、工程入仓
+
+`Dot_NET_WinForm` 原型迁入 **`NET/src/Tiisu.App`**（进 `Tiisu.slnx`，与 Core/Engine 同仓）：
+
+| 文件 | 说明 |
+|---|---|
+| `Rendering/ICanvas.cs` | 12 个图元 + `DrawTile`（Scene 不碰 SkiaSharp 类型） |
+| `Rendering/SkiaCanvas.cs` | 唯一 Skia 实现（将来可换 D2D 后端） |
+| `BoardScene.cs` / `BoardControl.cs` | 牌桌场景与唯一控件（SKControl + 60fps + 命中测试 + letterbox） |
+| `Ui/MainForm.cs` | 窗口只做一件事：丢一个铺满的 BoardControl |
+| `Assets/TileAtlas.cs` | 加载雪碧图并切片 |
+| `Program.cs` | 窗口 / `--render <png>` / `--bench <frames>` 三种模式 |
+
+TFM 必须是 **`net10.0-windows10.0.19041`**（`SkiaSharp.Views.WindowsForms` 只提供该资产）。
+`SkiaSharp 4.x` 的文字 API 变了：`SKPaint` 不再有 `TextSize/TextAlign/FontMetrics`，改用 `SKFont` + `DrawText(text,x,y,align,font,paint)`。
+
+### 二、真实牌面
+
+`Web/scripts/export_tiles.py` + `tile_atlas.html`：无头 Edge 把 `mj_tiles/*.svg`
+（34 张）排成 9×4 网格、透明底、2× 栅格化 → `tiles.png`(648×400, 117 KB) + `tiles.json`。
+
+**为什么构建期栅格化**：`SkiaSharp.Svg 1.60` 与 SkiaSharp 4.x 不兼容、`Svg.Skia` 版本绑定风险高；
+浏览器渲染 SVG 与 Web 版视觉 100% 一致，运行时只加载 PNG。
+
+### 三、验收
+
+| 项 | 结果 |
+|---|---|
+| `dotnet build` | 0 警告 0 错误 |
+| `--render` | 1280×720 PNG，`atlas loaded: True`，牌面来自雪碧图 |
+| `--bench 300` | 平均 **4.61 ms/帧（217 fps）**，p95 4.88 ms |
+| `dotnet publish -c Release -r win-x64` | **单文件 `Tiisu.Mahjong.exe` 155.4 MB**（原生库自解压），发布产物 `--render` 正常 |
+| 窗口模式 | 原型阶段已验证（SKControl 铺满 + 中文 + 悬停 + 动画） |
+
+### 四、体积与已知项
+
+- 155 MB 是 self-contained + Skia + WinForms + OpenTK（`SkiaSharp.Views.WindowsForms` 的依赖）的正常量级；
+  若只要框架依赖版（需装 .NET 10 Runtime）可降到 ~30 MB。
+- 发布目录里还有 `libSkiaSharp.pdb` 等调试符号（非必需，可删）。
+- `KeyCode`/窗口截图在发布版上未取到（前台被浏览器抢占），但 `--render` 已证明渲染链路可用。
 
 ---
 
