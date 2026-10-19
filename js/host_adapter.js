@@ -131,6 +131,141 @@
         return p;
     }
 
+    // ══════════════════════════════════════════════════════════════
+    // 判役 / 听牌 / AI 的 JS 替身
+    //
+    // csharp 模式下 index.html 不加载 winchecker.js / tenpai.js / aiPlayer.js，
+    // 由这里提供同名全局：WinChecker / listTenpai / getAIDiscardIndex。
+    // 判役、听牌、AI 决策全部经同步 host object 走 C#；JS 只做参数/结果编解码。
+    // ══════════════════════════════════════════════════════════════
+
+    function callHost(method, args) {
+        const hosts = getSyncHosts();
+        const host = hosts && hosts[HOST_NAME];
+        if (!host) {
+            throw new Error('[host_adapter] 缺少 host object（' + method + '）');
+        }
+
+        const fn = host[method];
+        if (typeof fn !== 'function') {
+            throw new Error('[host_adapter] 宿主缺少方法: ' + method);
+        }
+
+        switch (args.length) {
+            case 0: return host[method]();
+            case 1: return host[method](args[0]);
+            case 2: return host[method](args[0], args[1]);
+            case 3: return host[method](args[0], args[1], args[2]);
+            case 11:
+                return host[method](args[0], args[1], args[2], args[3], args[4], args[5],
+                    args[6], args[7], args[8], args[9], args[10]);
+            default: return fn.apply(host, args);
+        }
+    }
+
+    class HostOptionalSet extends Set {
+        add(id) {
+            const value = String(id);
+            if (!this.has(value)) {
+                super.add(value);
+                callHost('OptionalEnabledAdd', [value]);
+            }
+            return this;
+        }
+
+        delete(id) {
+            const value = String(id);
+            const had = this.has(value);
+            if (had) {
+                super.delete(value);
+                callHost('OptionalEnabledRemove', [value]);
+            }
+            return had;
+        }
+
+        // 从 C# 当前集合整体覆盖；用 super.add 避免回写 host。
+        syncFrom(list) {
+            super.clear();
+            for (let i = 0; i < (list || []).length; i++) {
+                super.add(String(list[i]));
+            }
+        }
+    }
+
+    const optionalEnabled = new HostOptionalSet();
+
+    class WinCheckerHost {
+        constructor(config, yakuData) {
+            this.config = config;
+            this.yakuData = yakuData || {};
+            this.baseFu = (this.yakuData && this.yakuData.baseFu) || 7;
+            this.optionalEnabled = optionalEnabled;
+            this.maxSplit = true;
+        }
+
+        getYakuFu(id) {
+            const data = this.yakuData || {};
+            const lists = [data.yaku || [], data.highYaku || []];
+            for (let i = 0; i < lists.length; i++) {
+                for (let j = 0; j < lists[i].length; j++) {
+                    if (lists[i][j].id === id) return lists[i][j].fu;
+                }
+            }
+            return 0;
+        }
+
+        // 与 winchecker.js 同参：全部判役走 C#（结果形状见 EngineHost.ResultNode）。
+        checkWin(hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, kans, firstTurn, discards, winTile, winCtx) {
+            const result = callHost('CheckerCheckWin', [
+                JSON.stringify(tileIds(hand || [])),
+                !!selfDraw,
+                !!hasCalled,
+                ankanCount | 0,
+                minkanCount | 0,
+                JSON.stringify((melds || []).map(function (m) {
+                    return { type: m.type, tiles: tileIds(m.tiles) };
+                })),
+                JSON.stringify(tileIds(kans || [])),
+                !!firstTurn,
+                JSON.stringify(tileIds(discards || [])),
+                JSON.stringify(winTile ? tileId(winTile) : null),
+                JSON.stringify((winCtx && typeof winCtx === 'object') ? winCtx : null)
+            ]);
+            return JSON.parse(result);
+        }
+
+        // 返回与 JS 相同形状的函数：fn(hand, groups) -> bool。
+        conditionFn(id) {
+            return function (hand, groups) {
+                return !!callHost('CheckerConditionFn', [
+                    String(id),
+                    JSON.stringify(tileIds(hand || [])),
+                    JSON.stringify(groups || null)
+                ]);
+            };
+        }
+    }
+
+    function listTenpaiHost(checker, hand, melds, opts) {
+        const options = (opts && typeof opts === 'object') ? opts : {};
+        const result = callHost('ListTenpai', [
+            JSON.stringify(tileIds(hand || [])),
+            JSON.stringify((melds || []).map(function (m) {
+                return { type: m.type, tiles: tileIds(m.tiles) };
+            })),
+            JSON.stringify(options)
+        ]);
+        return JSON.parse(result);
+    }
+
+    function getAIDiscardIndexHost(hand, game) {
+        // game 参数在 JS 算法里只作上下文；C# 的 ChooseDiscardIndex 只要手牌 + 一次随机值。
+        return callHost('GetAIDiscardIndex', [
+            JSON.stringify(tileIds(hand || [])),
+            Math.random()
+        ]);
+    }
+
     class TiisuMahjongHost {
         constructor() {
             const hosts = getSyncHosts();
@@ -408,59 +543,19 @@
         // ══════════════════════════════════════════════════════════
 
         _makeChecker() {
-            const self = this;
-            const optional = new Set();
-            const origAdd = optional.add.bind(optional);
-            const origDelete = optional.delete.bind(optional);
-
-            optional.add = function (id) {
-                const result = origAdd(id);
-                try { self._invoke('SetOptionalYaku', [String(id), true]); } catch (e) { /* 未初始化时忽略 */ }
-                return result;
-            };
-            optional.delete = function (id) {
-                const result = origDelete(id);
-                try { self._invoke('SetOptionalYaku', [String(id), false]); } catch (e) { /* 未初始化时忽略 */ }
-                return result;
-            };
-
-            return {
-                optionalEnabled: optional,
-                checkWin: function (hand, selfDraw, hasCalled, ankanCount, minkanCount, melds, kans, firstTurn, discards, winTile, winCtx) {
-                    return self._checkWin({
-                        hand: hand,
-                        selfDraw: selfDraw,
-                        hasCalled: hasCalled,
-                        ankanCount: ankanCount,
-                        minkanCount: minkanCount,
-                        melds: melds,
-                        firstTurn: firstTurn,
-                        winTile: winTile,
-                        winCtx: winCtx
-                    });
-                },
-                conditionFn: function () {
-                    throw new Error('[host_adapter] checker.conditionFn 未在 C# 桥实现');
-                }
-            };
+            return new WinCheckerHost(null, this.config);
         }
 
-        _checkWin(req) {
-            const payload = {
-                hand: tileIds(req.hand),
-                selfDraw: !!req.selfDraw,
-                hasCalled: !!req.hasCalled,
-                ankanCount: req.ankanCount | 0,
-                minkanCount: req.minkanCount | 0,
-                melds: (req.melds || []).map(function (m) {
-                    return { type: m.type, tiles: tileIds(m.tiles) };
-                }),
-                firstTurn: !!req.firstTurn,
-                winTile: tileId(req.winTile),
-                ctx: (req.winCtx && typeof req.winCtx === 'object') ? req.winCtx : null
-            };
-
-            return JSON.parse(this._invoke('CheckWin', [JSON.stringify(payload)]));
+        _syncOptionalFromHost() {
+            try {
+                const list = JSON.parse(this._invoke('OptionalEnabledList', []));
+                const optional = this.checker && this.checker.optionalEnabled;
+                if (optional && typeof optional.syncFrom === 'function') {
+                    optional.syncFrom(list);
+                }
+            } catch (e) {
+                console.warn('[host_adapter] 同步可选役失败: ' + ((e && e.message) || e));
+            }
         }
 
         // ══════════════════════════════════════════════════════════
@@ -477,21 +572,18 @@
 
         init(config, checker, playerUUID, settings) {
             this.config = config;
+            this.checker = checker || this._makeChecker();
             this.playerUUID = playerUUID || '';
             this._invoke('Init', [JSON.stringify(settings || {}), this.playerUUID]);
             this._initialized = true;
-            if (checker && checker.optionalEnabled) {
-                const self = this;
-                checker.optionalEnabled.forEach(function (id) {
-                    self.checker.optionalEnabled.add(id);
-                });
-            }
+            this._syncOptionalFromHost();
             this._refresh(false);
         }
 
         applySettings(settings) {
             this.settings = Object.assign({}, this.settings, settings || {});
             this._invoke('ApplySettings', [JSON.stringify(settings || {})]);
+            this._syncOptionalFromHost();
             this._refresh(false);
         }
 
@@ -653,17 +745,30 @@
     // 暴露给调试 / 手动覆盖
     window.TiisuMahjongHost = TiisuMahjongHost;
 
+    // 手牌分析条（handAnalyzer.js）在 csharp 模式不再加载，整条面板直接隐藏。
+    function hideAnalysisPanel() {
+        const content = document.getElementById('handAnalysis');
+        const panel = content && content.closest ? content.closest('.panel') : null;
+        if (panel) panel.style.display = 'none';
+    }
+
     // ── 选择适配器：默认 JS 引擎，只有 ?engine=csharp + WebView2 才接管 ──
     try {
         const engineParam = new URLSearchParams(location.search).get('engine');
-        if (engineParam === 'csharp') {
-            if (isCSharpHost() && typeof TiisuMahjong !== 'undefined') {
-                TiisuMahjong = TiisuMahjongHost; // 覆盖 engine.js 的全局类绑定
-                window.TiisuMahjong = TiisuMahjongHost;
-                console.log('[host_adapter] C# 引擎已接管（engine=csharp, host=tiisu）');
-            } else {
-                console.warn('[host_adapter] ?engine=csharp 但不在 WebView2 宿主中，继续使用 JS 引擎');
+        if (engineParam === 'csharp' && isCSharpHost()) {
+            // csharp 模式下 index.html 已跳过 engine.js / winchecker.js / tenpai.js / aiPlayer.js，
+            // 这里提供同名全局给 game.js 使用。
+            window.TiisuMahjong = TiisuMahjongHost;
+            window.WinChecker = WinCheckerHost;
+            window.listTenpai = listTenpaiHost;
+            window.getAIDiscardIndex = getAIDiscardIndexHost;
+            hideAnalysisPanel();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', hideAnalysisPanel);
             }
+            console.log('[host_adapter] C# 引擎已接管（engine=csharp, host=tiisu；判役/听牌/AI 走 C#）');
+        } else if (engineParam === 'csharp') {
+            console.warn('[host_adapter] ?engine=csharp 但不在 WebView2 宿主中，继续使用 JS 引擎');
         }
     } catch (e) {
         if (window.console && console.error) {

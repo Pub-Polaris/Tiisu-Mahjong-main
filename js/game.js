@@ -491,8 +491,7 @@ async function ensureDeps() {
         ['tenpai.js',       () => typeof listTenpai !== 'undefined'],
         ['aiPlayer.js',     () => typeof getAIDiscardIndex !== 'undefined'],
         ['winchecker.js',   () => typeof WinChecker !== 'undefined'],
-        ['engine.js',       () => typeof TiisuMahjong !== 'undefined'],
-        ['handAnalyzer.js', () => typeof analyzeHand !== 'undefined']
+        ['engine.js',       () => typeof TiisuMahjong !== 'undefined']
     ];
     for (const [file, ready] of deps) {
         if (ready()) continue;

@@ -67,16 +67,32 @@
 </div>
 <div class="debug-log" id="debugLog"></div>
 </div>
-<script src="src/handAnalyzer.js"></script>
-<script src="src/tiles.js"></script>
-<script src="src/uuid.js"></script>
-<script src="src/notation.js"></script>
-<script src="src/tenpai.js"></script>
-<script src="src/aiPlayer.js"></script>
-<script src="src/winchecker.js"></script>
-<script src="src/engine.js"></script>
-<!-- C#（WinForms + WebView2）适配器：仅 ?engine=csharp 且运行在 WebView2 宿主里时接管；默认仍是 JS 引擎 -->
-<script src="js/host_adapter.js"></script>
+<!--
+  引擎脚本条件加载（必须在 js/game.js 之前同步执行）：
+  - 默认（浏览器 / JS 引擎）：按原顺序加载 handAnalyzer → tiles → uuid → notation → tenpai → aiPlayer → winchecker → engine。
+  - csharp（?engine=csharp 且运行在 WebView2 宿主里）：只加载表现层公共脚本；
+    判役 / 听牌 / AI / 对局状态机由 host_adapter.js 桥到 C#，上面 5 个 JS 不再加载、也不进安装包。
+-->
+<script>
+(function () {
+    var useCSharpHost = false;
+    try {
+        var engine = new URLSearchParams(location.search).get('engine');
+        var webview = window.chrome && window.chrome.webview;
+        var hosts = webview && webview.hostObjects && webview.hostObjects.sync;
+        useCSharpHost = engine === 'csharp' && !!(hosts && hosts.tiisu);
+    } catch (e) {}
+
+    var scripts = useCSharpHost
+        ? ['js/host_adapter.js', 'src/tiles.js', 'src/uuid.js', 'src/notation.js']
+        : ['src/handAnalyzer.js', 'src/tiles.js', 'src/uuid.js', 'src/notation.js',
+           'src/tenpai.js', 'src/aiPlayer.js', 'src/winchecker.js', 'src/engine.js'];
+
+    for (var i = 0; i < scripts.length; i++) {
+        document.write('<script src="' + scripts[i] + '"><\/script>');
+    }
+})();
+</script>
 <script src="js/game.js"></script>
 </body>
 </html>

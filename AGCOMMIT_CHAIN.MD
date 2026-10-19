@@ -139,6 +139,7 @@
 | 2026-10-20 02:4x | `dsh` | `（本条）` | **A：WinForms 入仓 + 真实牌面 + 单文件发布**（CHANGELOG `261002-45`）：`NET/src/Tiisu.App` 单 SKControl 自绘；SVG→雪碧图 117KB；`--bench` 217fps；单文件 155MB 可跑 | 留给 opencode：**TFM 必须 net10.0-windows10.0.19041**，否则 SkiaSharp WinForms 资产不匹配 |
 | 2026-10-20 03:1x | `dsh` | `（本条）` | **C：界面骨架 + 设计交接模板**（CHANGELOG `261002-46`）：`Screen`/`ScreenHost` + 数据驱动 `UiLayout` + TableScreen/MenuScreen；`DESIGN_SPEC.md` 交接模板；`--render` 支持指定屏 | 留给 opencode：**版式走 `Assets/layout/*.json`，不要硬编码坐标到 .cs** |
 | 2026-10-20 03:2x | `dsh` | `（本条）` | **混合外壳：WebView2 + C# 引擎一次换完**（CHANGELOG `261002-47`）：现有 Web UI 零重写、19 个引擎方法同步桥接、`/api` 由 C# 应答、数据目录 `%APPDATA%`、整页缩放适配、NSIS 安装包（不写注册表）安装/卸载实测通过 | 留给 opencode：**牌桌铺满 vs 整页 fit 需要北极星定**；`engine.js` 里未桥接的方法要按需补 |
+| 2026-10-20 04:0x | `dsh` | `（本条）` | **业务逻辑真正迁进 C#**（CHANGELOG `261002-48`）：判定/听牌/AI 桥到 C#、条件加载、安装包剔除 5 个业务 JS、删手牌分析条；安装后 `Web/src` 只剩 4 个工具/表现层文件 | 留给 opencode：**新增逻辑必须同时在 C# 与 JS 两侧保持一致，或明确只走 C#** |
 **历史提交的 trailer 未回填**（约定自 `260927-04` 起生效）；上表即为它们的归属登记。
 
-> 页脚：文档版本 `261002-47`（2026-10-20） · 对应备份 `backup_20261020_025547.tar.gz`
+> 页脚：文档版本 `261002-48`（2026-10-20） · 对应备份 `backup_20261020_040051.tar.gz`

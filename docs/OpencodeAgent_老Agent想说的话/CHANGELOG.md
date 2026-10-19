@@ -78,6 +78,7 @@
 | 261002-45 | 2026-10-20 | **A：WinForms 工程入仓 + 真实牌面 + 单文件发布** | `NET/src/Tiisu.App`（net10.0-windows10.0.19041，SKControl 单控件自绘，引用 Core+Engine）；牌面由 `Web/scripts/export_tiles.py` 把 34 张 SVG 栅格化成雪碧图（`Assets/tiles.png` 117 KB）；`--render` 离屏出图、`--bench` 217fps、`dotnet publish` 单文件 155 MB 且能跑 |
 | 261002-46 | 2026-10-20 | **C：界面骨架 + 设计交接模板** | `Screen`/`ScreenHost`（屏切换 + 150ms 淡入 + 输入换算）、`UiLayout` 数据驱动布局、`TableScreen`/`MenuScreen`；`Assets/layout/menu.json`；`DESIGN_SPEC.md`（画布/元素/状态/资源/动画的交接模板）；`--render` 可指定屏 |
 | 261002-47 | 2026-10-20 | **混合外壳：WebView2 承载现有 UI + C# 引擎一次换完** | `NET/src/Tiisu.Shell`（WinForms + WebView2，`tiisu.local` 虚拟主机直接加载 `Web/`，`/api/*` 由 C# 拦截应答，不再起 Kestrel/Python）；`EngineHost` 用同步 host object 接管 19 个引擎方法；`Web/js/host_adapter.js` 贴着原 UI 用镜像对象；数据目录迁 `%APPDATA%\TiisuMahjong`；整页缩放适配；框架依赖发布 + NSIS 安装包（不写注册表），安装/启动/卸载实测通过 |
+| 261002-48 | 2026-10-20 | **补齐：业务逻辑真正迁进 C#（判定/听牌/AI）** | 北极星发现安装包里 `Web/src` 还带着 `engine.js`(100KB)/`winchecker.js`(61.7KB)/`aiPlayer.js`/`tenpai.js`/`handAnalyzer.js`；本轮把 `checkWin/conditionFn/optionalEnabled/listTenpai/getAIDiscardIndex` 桥到 C#，`index.html` 改条件加载，发布排除 5 个 JS；**手牌分析条按决定删除**；安装后 `Web/src` 只剩 `tiles/uuid/notation/logRender`，安装版 `--smoke` PASS |
 
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
@@ -261,6 +262,50 @@ Skia 那套（`src/Tiisu.App`）降级为「将来特效层基础」，不算废
 1. 整页 fit 会让牌桌只占约 1160×720（左右留白）；若要「牌桌铺满」是另一套缩放值，等北极星定。
 2. 本机窗口管理器会把新窗口强制最大化，默认 1460×900 只在「还原」后可见。
 3. `recordTiles` 的 roundlog 不落盘、和牌/流局 overlay 未迁、`/api/stats` 不自动上报、终局不回 portal（既有差距）。
+
+---
+
+## 261002-48 — 业务逻辑真正迁进 C#（2026-10-20）
+
+### 一、北极星发现的问题
+
+`261002-47` 的混合外壳只把 `engine.js` 的 `TiisuMahjong` 类桥到了 C#，
+但 `game.js` 仍在用 JS 的 `WinChecker` / `analyzeHand` / `listTenpai` / `getAIDiscardIndex`。
+安装目录里可见 `Web/src/engine.js`(100KB)、`winchecker.js`(61.7KB)、`aiPlayer.js`、`tenpai.js`、`handAnalyzer.js` ——
+**判役有两份真源**，业务逻辑迁移并不完整。我在上一条记录里写成「引擎一次换完」，是夸大。
+
+### 二、本轮改动
+
+| 位置 | 改动 |
+|---|---|
+| `Tiisu.Shell/EngineHost.Json.cs` | 新增 `CheckerCheckWin`（11 参对齐 JS）、`CheckerConditionFn`、`OptionalEnabledAdd/Remove/List`、`ListTenpai`、`GetAIDiscardIndex`；复杂值走 JSON 字符串 |
+| `Tiisu.Core/WinChecker(.Conditions).cs` | **只加只读包装** `OptionalEnabled` / `ConditionFn`，判役逻辑零改动 |
+| `Web/js/host_adapter.js` | csharp 模式定义 `window.WinChecker`（checkWin/conditionFn/optionalEnabled）、`window.listTenpai`、`window.getAIDiscardIndex`，全部委托宿主；隐藏手牌分析条 |
+| `Web/index.html` | 9 个静态 script 改为 `document.write` 条件加载：csharp 只加载 `host_adapter + tiles/uuid/notation`；浏览器默认原顺序不变 |
+| `Web/js/game.js` | boot 依赖检查删掉 `handAnalyzer` 一项（其余渲染逻辑未动） |
+| `Tiisu.Shell.csproj` | publish 复制 `Web/` 时排除 5 个业务 JS |
+| 手牌分析条 | **按北极星决定删除**（原本只是提醒设计），不移植 |
+
+### 三、验收（自己复跑）
+
+| 项 | 结果 |
+|---|---|
+| `dotnet build Tiisu.slnx` | 0 警告 0 错误 |
+| `dotnet test Tiisu.slnx` | Api 7 / Core 1（10115 条）/ Engine 32 全绿 |
+| `--smoke 20` | 退出码 0，`RESULT: PASS`，JS 错误 0，控制台显示「判役/听牌/AI 走 C#」 |
+| `--smoke 20 --drive-human` | PASS（覆盖 `checker.checkWin` 人类和牌路径） |
+| 安装包 | 0.85 MB；静默安装 exit 0 |
+| 安装后 `Web\src` | 只有 `logRender.js / notation.js / tiles.js / uuid.js`；5 个引擎 JS 全部不存在 |
+| 安装版 `--smoke 15` | PASS，JS 错误 0 |
+| 卸载 | `uninstall.cmd` 删目录 + 快捷方式，全干净 |
+| 窗口截图 | 牌桌正常、手牌分析条已消失、副露/牌河显示正常 |
+| Web 默认回归 | `run_all.py`：YAKUTEST 221/221、ENGINETEST 73/73、ALL CHECKS PASSED（浏览器版 JS 引擎不受影响） |
+
+### 四、现在的真源
+
+- **逻辑**：全在 C#（`Tiisu.Core` 判役 / `Tiisu.Engine` 状态机+AI / `Tiisu.Shell` 宿主）
+- **安装包里的 JS**：只剩纯工具与表现层（`tiles.js` 牌定义、`notation.js` 记号、`uuid.js`、`logRender.js` 汉字渲染）
+- 浏览器版（`Web/`）仍可用完整 JS 引擎 —— 两条路互不影响
 
 ---
 
