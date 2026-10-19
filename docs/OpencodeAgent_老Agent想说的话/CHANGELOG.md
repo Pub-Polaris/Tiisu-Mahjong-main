@@ -77,6 +77,7 @@
 | 261002-44 | 2026-10-20 | **M2c 引擎自走完成（C# 能自己打完整场）** | 新增 `IRandomSource`/`Mulberry32Random`、`TileSetFactory`（136 牌/洗牌/掷骰/定庄/切牌）、`RoundDealFactory`、`SelfPlayDriver`（586 行）、事件日志与 SHA256；引擎加法式改动（`RoundDeal.WallOrder`/`DrawFromWall`/可选随机源），回放路径不变；**200 场种子自走全通**（785 局、和牌率 97.5%），Engine 测试 18→32 |
 | 261002-45 | 2026-10-20 | **A：WinForms 工程入仓 + 真实牌面 + 单文件发布** | `NET/src/Tiisu.App`（net10.0-windows10.0.19041，SKControl 单控件自绘，引用 Core+Engine）；牌面由 `Web/scripts/export_tiles.py` 把 34 张 SVG 栅格化成雪碧图（`Assets/tiles.png` 117 KB）；`--render` 离屏出图、`--bench` 217fps、`dotnet publish` 单文件 155 MB 且能跑 |
 | 261002-46 | 2026-10-20 | **C：界面骨架 + 设计交接模板** | `Screen`/`ScreenHost`（屏切换 + 150ms 淡入 + 输入换算）、`UiLayout` 数据驱动布局、`TableScreen`/`MenuScreen`；`Assets/layout/menu.json`；`DESIGN_SPEC.md`（画布/元素/状态/资源/动画的交接模板）；`--render` 可指定屏 |
+| 261002-47 | 2026-10-20 | **混合外壳：WebView2 承载现有 UI + C# 引擎一次换完** | `NET/src/Tiisu.Shell`（WinForms + WebView2，`tiisu.local` 虚拟主机直接加载 `Web/`，`/api/*` 由 C# 拦截应答，不再起 Kestrel/Python）；`EngineHost` 用同步 host object 接管 19 个引擎方法；`Web/js/host_adapter.js` 贴着原 UI 用镜像对象；数据目录迁 `%APPDATA%\TiisuMahjong`；整页缩放适配；框架依赖发布 + NSIS 安装包（不写注册表），安装/启动/卸载实测通过 |
 
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
@@ -199,6 +200,67 @@ TFM 必须是 **`net10.0-windows10.0.19041`**（`SkiaSharp.Views.WindowsForms` �
 需要你提供的资源（牌背/立绘/背景/动效帧）、动画与转场参数、落地流程。
 
 **原则：版式走数据，逻辑走代码。** 同一屏的坐标改动不碰 `.cs`。
+
+---
+
+## 261002-47 — 混合外壳：WebView2 + C# 引擎（2026-10-20）
+
+### 一、为什么走这条路（记录一次走弯路）
+
+`261002-45/46` 我用 SkiaSharp 把牌桌/菜单**重画**了一遍——这是在造轮子：
+现有 `index.html` + CSS + SVG 牌面本来就是成品，重画必然追不上，还要两份真源。
+
+北极星点出后改为**混合方案**：WinForms 只当窗口壳，内容交给 WebView2 加载现有页面；
+Skia 那套（`src/Tiisu.App`）降级为「将来特效层基础」，不算废弃。
+
+### 二、结构
+
+| 文件 | 作用 |
+|---|---|
+| `src/Tiisu.Shell/MainForm.cs` | 唯一窗口 + WebView2 铺满 + 整页等比缩放 |
+| `src/Tiisu.Shell/EngineHost.cs`（1241 行） | **C# 引擎桥**：与 `engine.js` 同名同参，`AddHostObjectToScript` 同步调用 |
+| `src/Tiisu.Shell/EngineHost.Json.cs`（444） | 每次修改后返回完整状态快照，JS 侧贴回镜像对象 |
+| `src/Tiisu.Shell/ApiRouter.cs`（240） | 拦截 `https://tiisu.local/api/*` → `Tiisu.Api.DataStore`（不启 Kestrel、不启 Python） |
+| `src/Tiisu.Shell/ShellDataDirectory.cs` | 数据目录 `%APPDATA%\TiisuMahjong` + 一次性迁移（源保留） |
+| `Web/js/host_adapter.js`（656） | 仅 `?engine=csharp` 且 WebView2 宿主里接管；默认仍走 JS 引擎 |
+| `NET/installer/installer.nsi` + `build_installer.ps1` | NSIS 安装包（不写注册表，纯 ASCII 卸载脚本） |
+
+关键点：`game.js` 只调引擎 **19 个方法**、状态是同步属性读 → 用**同步 host object**
+（`hostObjects.sync.tiisu`）而不是 postMessage，`game.js` 的渲染逻辑一行未改。
+
+### 三、环境决策（北极星定）
+
+- 数据目录 `%APPDATA%\TiisuMahjong\`
+- 窗口客户区 1460×900（页面 `.table` 尺寸），可缩放
+- 发布：**框架依赖**（需 .NET 10 Desktop Runtime）+ **NSIS 安装包，不写注册表**
+- 目标 Win10 1709+ / Win11
+
+### 四、缩放适配（踩了两个坑）
+
+1. 最初按牌桌 1460×900 算 → 页面实际是 1460×(900+底部三条)≈1484×1125，底部被裁。
+2. 改成量整页，但用 `documentElement.scrollWidth` 会被视口夹住（量出 961 这种脏值），
+   且在 CSS 生效前量会拿到视口宽 → 改为量 `#table` 的 `getBoundingClientRect()`（CSS 像素，与 zoom 无关）
+   + `body.scrollHeight`，并加脏值保护（<600 直接跳过）与 **加载完成后补一次 fit**。
+3. 连续 resize 用 pending 尺寸补跑，不丢最后一次。
+
+结果：1460×900→0.80、1920×1009→0.90，整页（牌桌+分析条+日志条+工具栏）全部在视口内、无滚动条。
+
+### 五、验收（全部实跑）
+
+| 项 | 结果 |
+|---|---|
+| `dotnet build Tiisu.slnx` | 0 警告 0 错误 |
+| `dotnet test Tiisu.slnx` | Api 7 / Core 1（10115 条）/ Engine 32 全绿 |
+| `--smoke 20` | `engine=csharp`、跑完 1 局、JS 错误 0、`RESULT: PASS`、退出码 0 |
+| 窗口截图 | 现有 Web 牌桌（真实 SVG 牌面 + 分析条 + 工具栏），非 Skia 版 |
+| 安装包 | `TiisuMahjong-Setup.exe` 0.89 MB；静默装到临时目录 → 快捷方式创建 → 启动出图 → `uninstall.cmd` 删除目录与快捷方式，全部 OK |
+| Web 回归 | `run_all.py`：YAKUTEST 221/221、ENGINETEST 73/73、smoke PASS（默认 JS 引擎未受影响） |
+
+### 六、已知差距
+
+1. 整页 fit 会让牌桌只占约 1160×720（左右留白）；若要「牌桌铺满」是另一套缩放值，等北极星定。
+2. 本机窗口管理器会把新窗口强制最大化，默认 1460×900 只在「还原」后可见。
+3. `recordTiles` 的 roundlog 不落盘、和牌/流局 overlay 未迁、`/api/stats` 不自动上报、终局不回 portal（既有差距）。
 
 ---
 
