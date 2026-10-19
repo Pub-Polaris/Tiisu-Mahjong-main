@@ -27,6 +27,7 @@
 | `hosting-webview2.md` | 桌面外壳方案（WebView2）：能力、平台支持、分发方式 |
 | `serialization-json.md` | System.Text.Json 源生成（两种模式、AOT、枚举） |
 | `domain-mahjong.md` | 本项目领域知识（役种数量、两套机制、踩过的口径） |
+| `igs-2002-implementation.md` | **参考**：IGS《明星三缺一 2002》技术分析（DirectDraw 2D 精灵 + FLI 片头 + 预渲染牌），对七子的渲染选型有直接参考 |
 | `mahjong-basics.md` | **麻将基本结构**：牌/顺刻杠/将/和牌形态/术语（MCR 官方定义），以及七子特有约定 |
 | `mahjong-yaku-systems.md` | **国标（81 番中文全表）/日麻（43 役+24 役满）/中庸（44 番）/古典（四张计分表）**，及与七子的差异对照 |
 
