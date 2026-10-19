@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>engine golden</title></head>
+<body><pre id="o">running</pre>
+<script src="/src/tiles.js"></script>
+<script src="/src/notation.js"></script>
+<script src="/src/handAnalyzer.js"></script>
+<script src="/src/tenpai.js"></script>
+<script src="/src/aiPlayer.js"></script>
+<script src="/src/winchecker.js"></script>
+<script src="/src/uuid.js"></script>
+<script src="/src/engine.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// engine golden 生成器（回放式对照用）
+//   /scripts/engine_golden.html?games=3&seed=20261018&hands=1
+//
+// 思路：C# 侧不重跑 AI 决策，而是**重放 JS 已经做出的动作**，逐步比对状态。
+// 因此语料记录：每局起始快照 + 动作序列（摸/打/副露/杠/和/流局）+ 每步之后的快照。
+// 外部依赖全部桩掉（fetch / Math.random / Date / setTimeout），保证可复现。
+// ══════════════════════════════════════════════════════════════
+(function () {
+  var q = new URLSearchParams(location.search);
+  var GAMES = parseInt(q.get('games') || '3', 10);
+  var SEED = parseInt(q.get('seed') || '20261018', 10);
+  var HANDS = parseInt(q.get('hands') || '1', 10);
+
+  // ── 1) 种子 PRNG（mulberry32，与 yaku 语料生成器一致） ──
+  function mk(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── 2) 定时器桩：FIFO 队列，由 drain() 同步推进 ──
+  var TIMERS = [];
+  var seq = 0;
+  window.setTimeout = function (fn, ms) {
+    var id = ++seq;
+    TIMERS.push({ id: id, fn: fn });
+    return id;
+  };
+  window.clearTimeout = function (id) {
+    for (var i = 0; i < TIMERS.length; i++) {
+      if (TIMERS[i].id === id) { TIMERS.splice(i, 1); return; }
+    }
+  };
+
+  // ── 3) fetch 桩：只满足 /api/* 的读取，全部不落盘 ──
+  var FETCHED = [];
+  var REAL_FETCH = window.fetch.bind(window);
+  window.fetch = function (url, opt) {
+    FETCHED.push(String(url));
+    if (String(url).indexOf('ike.json') >= 0) return REAL_FETCH(url, opt);   // 真的读役表
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve({}); } });
+  };
+
+  // ── 4) Date 桩：固定时间，避免日志/统计里出现真实时间 ──
+  var FIXED = 1760000000000;
+  var RealDate = window.Date;
+  window.Date = function () { return new RealDate(FIXED); };
+  window.Date.now = function () { return FIXED; };
+  window.Date.prototype = RealDate.prototype;
+
+  // ── 4b) UI 全局桩（engine 会直接调用 game.js 暴露的这几个，没有 typeof 保护） ──
+  window.gameLog = function () {};
+  window.renderAll = function () {};
+  window.showMsg = function () {};
+  window.updateDiceLines = function () {};
+  window.startMode = function () { return false; };
+
+  var IKE = null;
+
+  // ── 5) 快照 ──
+  function ids(arr) { return (arr || []).map(function (t) { return t.id; }).sort(); }
+  function snap(g) {
+    return {
+      rw: g.roundWindIdx, dealer: g.dealerIndex, hn: g.handNumber, hp: g.handsPlayed,
+      turn: g.turnIndex, wall: g.wall.length, rinshan: g.rinshan.length, wang: (g.wangDui || []).length,
+      honba: g.honba, scores: g.scores.slice(), state: g.state,
+      p: g.players.map(function (pl) {
+        return {
+          h: ids(pl.hand),
+          m: (pl.melds || []).map(function (m) { return { t: m.type, x: ids(m.tiles) }; }),
+          d: (pl.discards || []).map(function (t) { return t.id; }),
+          sw: pl.seatWind, dl: !!pl.isDealer
+        };
+      })
+    };
+  }
+
+  var EVENTS = [];   // 一串事件：{g: gameIdx, e: 事件类型, ...}
+  var gameIdx = -1;
+
+  function push(ev) {
+    ev.g = gameIdx;
+    EVENTS.push(ev);
+  }
+
+  // ── 6) 包装引擎方法 ──
+  function hook() {
+    var P = TiisuMahjong.prototype;
+
+    var _start = P.startNewRound;
+    P.startNewRound = function () {
+      var r = _start.apply(this, arguments);
+      push({ e: 'round_start', s: snap(this) });
+      return r;
+    };
+
+    var _draw = P.draw;
+    P.draw = function (player) {
+      var before = this.wall.length;
+      var tile = _draw.apply(this, arguments);
+      if (tile) {
+        push({ e: 'draw', p: this.players.indexOf(player), t: tile.id, bw: before,
+               sea: !!player._seaMoon, hai: !!player._haiDei, s: snap(this) });
+      }
+      return tile;
+    };
+
+    var _discard = P.discard;
+    P.discard = function (player, index) {
+      var tile = player.hand[index];
+      var r = _discard.apply(this, arguments);
+      if (r !== null) {
+        push({ e: 'discard', p: this.players.indexOf(player), t: tile.id, s: snap(this) });
+      }
+      return r;
+    };
+
+    var _meld = P.applyMeld;
+    P.applyMeld = function (pi, type, tile, discarder, chiTrio) {
+      var r = _meld.apply(this, arguments);
+      push({ e: 'meld', p: pi, mt: type, t: tile ? tile.id : null, from: discarder,
+             trio: chiTrio ? chiTrio.map(function (t) { return t.id; }) : null, s: snap(this) });
+      return r;
+    };
+
+    var _kan = P.doKan;
+    P.doKan = function (p, id, type) {
+      var r = _kan.apply(this, arguments);
+      push({ e: 'kan', p: this.players.indexOf(p), kt: type, id: id, s: snap(this) });
+      return r;
+    };
+
+    var _win = P.declareWin;
+    P.declareWin = function (winIdx, selfDraw, result, discarderIdx) {
+      var r = _win.apply(this, arguments);
+      push({ e: 'win', p: winIdx, self: !!selfDraw, from: (discarderIdx === undefined ? null : discarderIdx),
+             fu: result && result.totalFu, sp: result && result.specialPoints,
+             y: result && (result.activeYaku || []).map(function (y) { return y.name + ':' + y.fu; }),
+             s: snap(this) });
+      return r;
+    };
+
+    var _multi = P.declareMultiRon;
+    P.declareMultiRon = function (winners, discarderIdx) {
+      var r = _multi.apply(this, arguments);
+      push({ e: 'multi_ron', w: winners, from: discarderIdx, s: snap(this) });
+      return r;
+    };
+
+    var _tiisuin = P.declareTiisuin;
+    P.declareTiisuin = function (winIdx, discarderIdx) {
+      var r = _tiisuin.apply(this, arguments);
+      push({ e: 'tiisuin', p: winIdx, from: discarderIdx, s: snap(this) });
+      return r;
+    };
+
+    var _flow = P.declarePushFlow;
+    P.declarePushFlow = function (reason, playerIdx) {
+      var r = _flow.apply(this, arguments);
+      push({ e: 'flow', why: reason, p: (playerIdx === undefined ? null : playerIdx), s: snap(this) });
+      return r;
+    };
+
+    var _next = P.nextTurn;
+    P.nextTurn = function () {
+      var r = _next.apply(this, arguments);
+      push({ e: 'turn', s: snap(this) });
+      return r;
+    };
+  }
+
+  function drain(limit) {
+    var n = 0;
+    while (TIMERS.length && n < limit) {
+      var t = TIMERS.shift();
+      n++;
+      try { t.fn(); } catch (e) { push({ e: 'error', msg: String(e && e.message || e) }); break; }
+    }
+    return n;
+  }
+
+  // ── 7) 跑 ──
+  REAL_FETCH('/ike.json').then(function (r) { return r.json(); }).then(function (cfg) {
+    IKE = cfg;
+    hook();
+
+    for (gameIdx = 0; gameIdx < GAMES; gameIdx++) {
+      Math.random = mk(SEED + gameIdx * 7919);          // 每局独立种子
+      TIMERS.length = 0;
+      FETCHED.length = 0;
+
+      var checker = new WinChecker(null, cfg);
+      (cfg.yaku || []).forEach(function (y) { if (y.optional) checker.optionalEnabled.add(y.id); });
+
+      var g = new TiisuMahjong();
+      g.init(cfg, checker, 'golden-uuid-' + gameIdx, {});
+      g.modeTarget = HANDS;
+      g.setMode ? g.setMode(HANDS) : null;
+      g.executeCommand({ action: 'auto', speed: 0 });
+
+      var rounds = 0;
+      while (TIMERS.length && rounds < 4000) {
+        rounds += drain(4000);
+        if (g.handsPlayed >= HANDS) break;
+      }
+      push({ e: 'game_end', s: snap(g), fetched: FETCHED.slice() });
+    }
+
+    document.getElementById('o').textContent =
+      'RANDOM<ENGINE' + JSON.stringify({
+        seed: SEED, games: GAMES, hands: HANDS,
+        events: EVENTS
+      }) + '>ENGINE';
+  }).catch(function (e) {
+    document.getElementById('o').textContent = 'RERR<' + (e && e.message ? e.message : String(e)) + '>RERR';
+  });
+})();
+</script></body></html>

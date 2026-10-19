@@ -69,8 +69,61 @@
 | 261002-35 | 2026-10-18 | **知识库清零待补** | 国标 81 番**中文名+分值**（中文版 MCR2021.pdf，112 页文本层）；WebView2、System.Text.Json 源生成、C# 15 union 状态三页补齐；`sources.md` 重写（已读/不可得分类）；知识库内「待补」标记归零 |
 | 261002-36 | 2026-10-18 | **交接文档重写（C# 版）** | `docs/DSH/交给C#_交接_261018.md`（入库）+ `给DSH_迁移交接_261018.txt`（本地副本）；数字/路径全部更新（99·221、919/2116 行、115+10000 语料、net10.0/10.0.402）；红线段补 7 条（高目优先、可选役默认关、门槛先于奖赏、杠=14+杠数、双逢、三七之花、同色双老少不可达） |
 | 261002-37 | 2026-10-18 | **C# 判役核心完成（M1）+ golden 钩子补 maxSplit** | `NET` 侧把 winchecker 全量移植为 C#（约 3000 行），两份语料 **10115 条逐字段 0 差异**；golden 钩子补记 `maxSplit`（修 index 13 的不可调和差异，语料重生成 115 条）；C# 测试改为按条读取该字段 |
+| 261002-38 | 2026-10-20 | **M2 engine 状态机移植完成（回放式 0 差异）** | 新增 `scripts/engine_golden.html` + `gen_engine_golden.py`（桩 fetch/random/Date/timer，705 事件 5 局）；`NET/src/Tiisu.Engine/` 2722 行 C#；**705 事件逐字段 0 差异**，Engine 15 测试 / Core 10115 条仍全绿 |
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-38 — M2 engine 状态机移植完成（2026-10-20）
+
+计划 M2。判役（M1）已于 `261002-37` 完成，本轮搬状态机。
+
+### 一、策略：回放式对照
+
+engine 的难点不在状态转移，而在 **AI 决策 + 洗牌随机**。为了先把状态机钉死、不让随机性掩盖差异，
+采用**回放式**：
+
+- 语料记录 JS 已经做出的动作（摸/打/副露/杠/和/多家和/流局）+ **每步状态快照**
+- C# 只执行相同动作，逐步比对状态
+- AI 决策与洗牌被隔离在验证之外（另列 M2b）
+
+语料生成器 `scripts/engine_golden.html` 把所有外部依赖桩掉：`fetch`（只放行 ike.json）、
+`Math.random`（mulberry32 种子）、`Date`（固定时间）、`setTimeout`（FIFO 队列手工推进）、
+以及 `gameLog/renderAll/showMsg/updateDiceLines/startMode` 五个 game.js 的 UI 全局。
+
+**可复现性**：同种子重跑 SHA256 逐字节一致。
+
+### 二、语料
+
+`NET/tests/fixtures/engine-golden.json`：**705 事件 / 5 局**（0.57 MB）
+含 1 荣和、4 场多家和、45 副露、2 杠。
+
+### 三、C# 侧
+
+`NET/src/Tiisu.Engine/` 2722 行：主状态机 855、结算 599、回放驱动 472、语料 DTO 258、
+听牌 105，其余 Player/Enums/Models/TileUtil/WinSettlement/PointsConfig。
+
+**验收：705/705 事件逐字段 0 差异**（rw/dealer/hn/hp/turn/wall/rinshan/wang/honba/scores/state + 四家 h/m/d/sw/dl），
+并附**反向测试**（故意改坏快照必须报错），防止比对退化成空操作。
+分数不是抄语料：按 `y`+`fu` 重算 `calcFinalPoints` 与支付，4 场多家和 + 1 场荣和的 `totalFu/finalPoints` 全部对上。
+
+### 四、移植中发现的 JS 事实（已照抄）
+
+- `advanceDealer` **不改 `isDealer`**：局末快照里的 `dl` 是过期庄标记。
+- 快照 `d`（弃牌）是**打出顺序**，不是排序结果。
+- 明杠/加杠的**岭上补摸**在语料里没有独立 draw 事件 → 从「事件后快照 − 应删的牌」反推（5/5 命中）。
+
+### 五、明确未覆盖（不是缺陷，已写进 NET/README）
+
+AI 决策 / `flow()` 与听牌罚符 / 四风连打 / 拔厄 / 抢杠 / 人类交互路径 —— 本语料未触发或按范围不做。
+
+### 六、验收
+
+    Web：YAKUTEST 221/221（99 用例）；ENGINETEST 73/73；ALL CHECKS PASSED
+    NET：dotnet build 0 警告 0 错误
+         Engine 15 passed（705 事件 0 差异）
+         Core   1 passed（10115 条判役 golden 0 差异）
+
 ---
 
 ## 261002-37 — C# 判役核心完成（M1）+ golden 钩子补 maxSplit（2026-10-18）
