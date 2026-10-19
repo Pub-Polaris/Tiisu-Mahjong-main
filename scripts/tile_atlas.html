@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>tile atlas</title>
+<style>
+  html,body{margin:0;padding:0;background:transparent;}
+  #grid{display:grid;grid-template-columns:repeat(9,72px);grid-auto-rows:100px;gap:0;}
+  .cell{width:72px;height:100px;display:flex;align-items:center;justify-content:center;}
+  .cell img{width:68px;height:auto;image-rendering:auto;}
+</style></head>
+<body>
+<div id="grid"></div>
+<script>
+// 34 张牌：1-9m / 1-9p / 1-9s / 1-7z，按固定顺序铺成 9×4 网格（最后一格空）
+(function(){
+  const ids=[];
+  for(const s of ['m','p','s']) for(let n=1;n<=9;n++) ids.push(n+s);
+  for(let n=1;n<=7;n++) ids.push(n+'z');
+  const g=document.getElementById('grid');
+  for(const id of ids){
+    const c=document.createElement('div'); c.className='cell';
+    const img=document.createElement('img'); img.src='/mj_tiles/'+id+'.svg'; img.alt=id;
+    c.appendChild(img); g.appendChild(c);
+  }
+  window.__TILES__ = ids;
+})();
+</script>
+</body></html>

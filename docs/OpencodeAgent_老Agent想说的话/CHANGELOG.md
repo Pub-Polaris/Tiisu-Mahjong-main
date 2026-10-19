@@ -74,9 +74,49 @@
 | 261002-40 | 2026-10-20 | **补正 IGS 分析的一处过强推理** | 「没导入 sin/cos → 不可能 3D」不成立（内联 FSQRT/自建表都不进导入表）；改用正面证据：全 exe x87 指令仅 274 条、trig 仅 5 条且都用于 2D（360 项角度表 + 精灵四角旋转） |
 | 261002-42 | 2026-10-20 | **M2b AI 决策移植完成（4796 条 0 差异）** | 新增 `scripts/ai_golden.html` + `gen_ai_golden.py`（决策语料：状态+随机值→决策，4796 条：discard 958 / kan 959 / meld 945 / ron 958 / tsumo 976）；`NET/src/Tiisu.Engine/AiPlayer.cs` 784 行纯函数；0 差异，Engine 测试 15→18 |
 | 261002-43 | 2026-10-20 | **M3：C# API 替换 server.py + 日志改 JSONL** | `NET/src/Tiisu.Api`（Minimal API，7778）镜像 settings/state/stats/log/chrlog/roundlog/round_end；`server.py` 与 `engine.js` 同步改：日志落 `logs/<session>/round_NNN_p<idx>_<uuid>/events.jsonl`（**零 CJK**），汉字只在 `src/logRender.js` 生成 + `logview.html` 查看；**API 对等 22/22 PASS**，Api 测试 7 条 |
+| 261002-44 | 2026-10-20 | **M2c 引擎自走完成（C# 能自己打完整场）** | 新增 `IRandomSource`/`Mulberry32Random`、`TileSetFactory`（136 牌/洗牌/掷骰/定庄/切牌）、`RoundDealFactory`、`SelfPlayDriver`（586 行）、事件日志与 SHA256；引擎加法式改动（`RoundDeal.WallOrder`/`DrawFromWall`/可选随机源），回放路径不变；**200 场种子自走全通**（785 局、和牌率 97.5%），Engine 测试 18→32 |
 
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-44 — M2c 引擎自走完成（2026-10-20）
+
+`261002-38` 只搬了状态机（回放式，墙是 `null` 占位、摸牌由语料给）。
+本轮补齐**随机、洗牌、发牌、AI 驱动**，让 C# 引擎能自己打完整场。
+
+### 一、新增
+
+| 文件 | 行数 | 内容 |
+|---|---|---|
+| `Random/IRandomSource.cs` | 39 | 种子随机源 + `Mulberry32Random`（uint 回绕复刻 JS） |
+| `Random/TileSetFactory.cs` | 208 | 136 张牌、Fisher–Yates、掷骰、定庄、切牌（岭上/王堆/活牌山） |
+| `Deal/RoundDealFactory.cs` | 49 | 真实 `WallOrder` + 配牌；**先掷骰后洗牌**，与 `engine.js` 顺序一致 |
+| `SelfPlay/SelfPlayDriver.cs` | 586 | 整局循环：自摸→杠→出牌→他家荣和→吃碰→流局→连庄/下庄 |
+| `SelfPlay/GameEvent.cs` / `SelfPlayResult.cs` | 125 | 事件流与结果（含 SHA256 `EventHash`） |
+| `tests/.../SelfPlayTests.cs` | 273 | 完整性/不变量/决定性/合理性 + 定庄 Theory |
+
+引擎做**加法式**改动：`RoundDeal.WallOrder`、`SetupWallAndCut(skip, wallOrder)`、`DrawFromWall`、
+可选 `IRandomSource`、`PeekRinshanTile`、`CheckRonDetailed`。传 `null` 时行为与回放完全一致。
+
+### 二、验收
+
+    dotnet build -> 0 警告 0 错误
+    dotnet test  -> Api 7 / Core 1（10115 条）/ Engine 32（18 既有 + 14 新增）
+
+**200 场自走（seed 1..200，ModeTarget=2）**：
+785 局、和牌 765（97.5%）、流局 20（荒牌 16 / 四风连打 4）、平均 3.92 局/场、出岭 8 场。
+逐步不变量 **12,242 个观察点全过**；同 seed `EventHash` 一致，10 个 seed 两两不同。
+
+### 三、口径说明（未改规则，已在测试中体现）
+
+1. **总分不是严格守恒**：自摸均摊余数归自摸者（`splitPayment`）会让总分 +0..2；出岭把负分改记 −7000。
+   测试改为「行牌内守恒 + 跨局仅允许这两类已知漂移」。
+2. **被鸣的牌仍留在放铳者弃牌里**（JS 快照口径）→ 物理 136 校验需扣掉被鸣副露数。
+3. **抢杠未模拟**：既有 `DoKan` 不重跑 `checkRobKan`（回放由事件给结局），自走也未插入该判定。
+   若要补齐需单独决策（会改 `DoKan` 的加法接口）。
+4. 推牌流局（九种九牌/十三不靠）AI 不主动触发，与 JS 全 AI 行为一致。
+
 ---
 
 ## 261002-42/43 — M2b AI 决策 + M3 C# API 与日志 JSONL（2026-10-20）
