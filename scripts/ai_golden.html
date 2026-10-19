@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>ai golden</title></head>
+<body><pre id="o">running</pre>
+<script src="/src/tiles.js"></script>
+<script src="/src/notation.js"></script>
+<script src="/src/handAnalyzer.js"></script>
+<script src="/src/tenpai.js"></script>
+<script src="/src/aiPlayer.js"></script>
+<script src="/src/winchecker.js"></script>
+<script src="/src/uuid.js"></script>
+<script src="/src/engine.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// ai golden 生成器（AI 决策点对照用）
+//   /scripts/ai_golden.html?games=5&seed=20261018&hands=2
+//
+// 与 engine_golden.html 的区别：不记全部状态机事件，而是把 **AI 做出决策的瞬间**
+// 记成「输入状态 + 本次消耗的 Math.random + 输出」。C# 侧 AiPlayer 只吃
+// 状态与随机值复算，逐条比对。
+//
+// 决策点：
+//   discard — 摸牌之后 getAIDiscardIndex 选出的牌（含庄家首巡/副露后免摸）
+//   tsumo   — aiTurn 里的自摸判定（含开杠后的第二次判定，afterKan=true）
+//   kan     — canAnkan / canKakan（暗杠优先，没有才考虑加杠）
+//   ron     — afterDiscard 里 checkRon 对四家的荣和判定（winners 可为空）
+//   meld    — aiMeldDecision：minkan / pon / chi（随机选吃牌组合）/ pass
+// 外部依赖全部桩掉（fetch / Math.random / Date / setTimeout），保证可复现。
+// ══════════════════════════════════════════════════════════════
+(function () {
+  var q = new URLSearchParams(location.search);
+  var GAMES = parseInt(q.get('games') || '5', 10);
+  var SEED = parseInt(q.get('seed') || '20261018', 10);
+  var HANDS = parseInt(q.get('hands') || '2', 10);
+
+  // ── 1) 种子 PRNG（mulberry32，与 engine/yaku 语料生成器一致） ──
+  function mk(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ── 2) Math.random 捕获：RNG 每局换种子，CAP 只包住单个决策 ──
+  var RNG = mk(SEED);
+  var CAP = null;             // 非 null 时把随机值按序记进来
+  var LAST_DISCARD_RND = [];
+  Math.random = function () {
+    var v = RNG();
+    if (CAP) CAP.push(v);
+    return v;
+  };
+
+  // ── 3) 定时器桩：FIFO 队列，由 drain() 同步推进 ──
+  var TIMERS = [];
+  var seq = 0;
+  window.setTimeout = function (fn, ms) {
+    var id = ++seq;
+    TIMERS.push({ id: id, fn: fn });
+    return id;
+  };
+  window.clearTimeout = function (id) {
+    for (var i = 0; i < TIMERS.length; i++) {
+      if (TIMERS[i].id === id) { TIMERS.splice(i, 1); return; }
+    }
+  };
+
+  // ── 4) fetch 桩：只放行 ike.json ──
+  var FETCHED = [];
+  var REAL_FETCH = window.fetch.bind(window);
+  window.fetch = function (url, opt) {
+    FETCHED.push(String(url));
+    if (String(url).indexOf('ike.json') >= 0) return REAL_FETCH(url, opt);
+    return Promise.resolve({ ok: true, json: function () { return Promise.resolve({}); } });
+  };
+
+  // ── 5) Date 桩：固定时间，避免日志/统计里出现真实时间 ──
+  var FIXED = 1760000000000;
+  var RealDate = window.Date;
+  window.Date = function () { return new RealDate(FIXED); };
+  window.Date.now = function () { return FIXED; };
+  window.Date.prototype = RealDate.prototype;
+
+  // ── 6) UI 全局桩（engine 会直接调用 game.js 暴露的这几个，没有 typeof 保护） ──
+  window.gameLog = function () {};
+  window.renderAll = function () {};
+  window.showMsg = function () {};
+  window.updateDiceLines = function () {};
+  window.startMode = function () { return false; };
+
+  // ── 7) 决策记录 ──
+  var DECISIONS = [];
+  var gameIdx = -1;
+
+  // 旁证：实际和牌/流局次数，用来核对"记录到的决策"没有漏记或错记。
+  var STATS = { tsumoWins: 0, ronWins: 0, multiRon: 0, pushFlow: 0, specialFlow: 0, flow: 0 };
+
+  function ids(arr) { return (arr || []).map(function (t) { return t.id; }); }
+  function tid(t) { return t ? t.id : null; }
+
+  function pview(pl) {
+    return {
+      h: ids(pl.hand),
+      m: (pl.melds || []).map(function (m) { return { t: m.type, x: ids(m.tiles) }; }),
+      d: ids(pl.discards),
+      sw: pl.seatWind,
+      dealer: !!pl.isDealer,
+      first: !!pl.firstTurn,
+      ankan: pl.ankanCount || 0,
+      minkan: pl.minkanCount || 0,
+      ld: tid(pl._lastDraw),
+      sea: !!pl._seaMoon,
+      hai: !!pl._haiDei,
+      rin: !!pl._rinshanDrawn,
+      ftt: !!pl._firstTurnTenpai,
+      skip: !!pl._skipDraw
+    };
+  }
+
+  // 决策输入：一次快照里含四家牌面，足够 C# 独立复算（不再回读引擎）。
+  function makeInput(g, p, disc, discPlayer) {
+    var inp = {
+      p: p,
+      players: g.players.map(pview),
+      wall: g.wall.length,
+      rinshan: g.rinshan.length,
+      round: g.roundWind,
+      dealer: g.dealerIndex,
+      honba: g.honba,
+      hn: g.handNumber,
+      scores: g.scores.slice(),
+      turn: g.turnIndex,
+      last: tid(g.lastDiscarded),
+      kanTurn: !!g._kanThisTurn
+    };
+    if (disc !== undefined) inp.disc = disc ? disc.id : null;
+    if (discPlayer !== undefined) inp.discPlayer = discPlayer;
+    return inp;
+  }
+
+  function push(rec) {
+    rec.g = gameIdx;
+    DECISIONS.push(rec);
+  }
+
+  // 与 aiTurn 里的自摸判定逐参数一致。
+  function evalTsumo(g, pi) {
+    var player = g.players[pi];
+    var r = g.checker.checkWin(
+      player.hand.slice(), true,
+      player.melds.length > 0 || player.minkanCount > 0,
+      player.ankanCount, player.minkanCount,
+      player.melds, player.kans,
+      player.firstTurn,
+      player.discards, player._lastDraw,
+      g.buildWinCtx(player, player._lastDraw, true)
+    );
+    return !!r.success;
+  }
+
+  // 与 aiTurn 里的暗杠/加杠检查一致：暗杠优先，没有才看加杠。
+  function evalKan(g, pi) {
+    var player = g.players[pi];
+    var ank = g.canAnkan(player);
+    if (ank) return { id: ank, type: 'ankan' };
+    var kak = g.canKakan(player);
+    if (kak) return { id: kak, type: 'kakan' };
+    return null;
+  }
+
+  function recordTurnHead(g, pi) {
+    // 摸牌后（或庄家首巡/副露免摸的等价状态）的决策序列：自摸 → 杠。
+    var inp = makeInput(g, pi);
+    var win = evalTsumo(g, pi);
+    push({ kind: 'tsumo', p: pi, in: inp, rnd: [], out: { win: win } });
+    if (!win) {
+      push({ kind: 'kan', p: pi, in: inp, rnd: [], out: evalKan(g, pi) });
+    }
+  }
+
+  // ── 8) 包装引擎：只读地观测决策点 ──
+  function hook() {
+    var P = TiisuMahjong.prototype;
+
+    // discard 的随机值来自上一次 getAIDiscardIndex；用全局包装捕获。
+    var ORIG_GAI = window.getAIDiscardIndex;
+    window.getAIDiscardIndex = function (hand, game) {
+      CAP = [];
+      try {
+        return ORIG_GAI.apply(this, arguments);
+      } finally {
+        LAST_DISCARD_RND = CAP || [];
+        CAP = null;
+      }
+    };
+
+    var _aiTurn = P.aiTurn;
+    P.aiTurn = function () {
+      if (this.state === 'ai_turn') {
+        var player = this.players[this.turnIndex];
+        // 庄家首巡（14 张）与副露/杠后免摸：不经过 draw，状态就是决策输入。
+        var isDealerFirst = player.isDealer && player.hand.length === 14 &&
+                            !player._lastDraw && !player._skipDraw;
+        if (player._skipDraw || isDealerFirst) {
+          recordTurnHead(this, this.turnIndex);
+        }
+      }
+      return _aiTurn.apply(this, arguments);
+    };
+
+    var _draw = P.draw;
+    P.draw = function (player) {
+      var r = _draw.apply(this, arguments);
+      if (r) recordTurnHead(this, this.players.indexOf(player));
+      return r;
+    };
+
+    var _doKan = P.doKan;
+    P.doKan = function (p, id, type) {
+      var r = _doKan.apply(this, arguments);
+      // 杠成功的当巡还会再判一次自摸（aiTurn 的 r2）。抢杠/墙尽返回 false，没有第二次判定。
+      if (r) {
+        var pi = this.players.indexOf(p);
+        var inp = makeInput(this, pi);
+        push({ kind: 'tsumo', p: pi, in: inp, rnd: [], afterKan: true,
+               out: { win: evalTsumo(this, pi) } });
+      }
+      return r;
+    };
+
+    var _discard = P.discard;
+    P.discard = function (player, index) {
+      var pi = this.players.indexOf(player);
+      var inp = makeInput(this, pi);        // 出牌前的 14 张（含要打的那张）
+      var r = _discard.apply(this, arguments);
+      var rnd = LAST_DISCARD_RND || [];
+      LAST_DISCARD_RND = [];
+      push({ kind: 'discard', p: pi, in: inp, rnd: rnd, out: { tile: r ? r.id : null } });
+      return r;
+    };
+
+    // aiMeldDecision 内部可能调用 applyMeld；用全局标记捕获「决定了什么」。
+    var MELD_ACTIVE = false;
+    var MELD_OUT = null;
+    var _applyMeld = P.applyMeld;
+    P.applyMeld = function (pi, type, tile, discarder, chiTrio) {
+      var r = _applyMeld.apply(this, arguments);
+      if (MELD_ACTIVE) {
+        MELD_OUT = {
+          action: 'meld', type: type, target: pi,
+          chiTrio: chiTrio ? ids(chiTrio) : null
+        };
+      }
+      return r;
+    };
+
+    var _aiMeld = P.aiMeldDecision;
+    P.aiMeldDecision = function (opts, discarded, discPlayer) {
+      var inp = makeInput(this, -1, discarded, discPlayer);
+      MELD_ACTIVE = true;
+      MELD_OUT = null;
+      CAP = [];
+      try {
+        _aiMeld.apply(this, arguments);
+      } finally {
+        MELD_ACTIVE = false;
+        var rnd = CAP || [];
+        CAP = null;
+        var out = MELD_OUT || { action: 'pass' };
+        MELD_OUT = null;
+        push({ kind: 'meld', p: -1, in: inp, rnd: rnd, out: out });
+      }
+    };
+
+    var _checkRon = P.checkRon;
+    P.checkRon = function (tile) {
+      var inp = makeInput(this, -1, tile, this.turnIndex);
+      var w = _checkRon.apply(this, arguments);
+      push({ kind: 'ron', p: -1, in: inp, rnd: [],
+             out: { winners: w.map(function (x) { return x.playerIdx; }) } });
+      return w;
+    };
+
+    // 旁证计数（不改行为）
+    var _declareWin = P.declareWin;
+    P.declareWin = function (winIdx, selfDraw) {
+      if (selfDraw) STATS.tsumoWins++; else STATS.ronWins++;
+      return _declareWin.apply(this, arguments);
+    };
+
+    var _declareMultiRon = P.declareMultiRon;
+    P.declareMultiRon = function (winners) {
+      STATS.multiRon++;
+      STATS.ronWins += (winners || []).length;
+      return _declareMultiRon.apply(this, arguments);
+    };
+
+    var _pushFlow = P.declarePushFlow;
+    P.declarePushFlow = function () {
+      STATS.pushFlow++;
+      return _pushFlow.apply(this, arguments);
+    };
+
+    var _specialFlow = P.declareSpecialFlow;
+    P.declareSpecialFlow = function () {
+      STATS.specialFlow++;
+      return _specialFlow.apply(this, arguments);
+    };
+
+    var _flow = P.flow;
+    P.flow = function () {
+      STATS.flow++;
+      return _flow.apply(this, arguments);
+    };
+  }
+
+  function drain(limit) {
+    var n = 0;
+    while (TIMERS.length && n < limit) {
+      var t = TIMERS.shift();
+      n++;
+      try { t.fn(); } catch (e) { push({ kind: 'error', msg: String(e && e.message || e) }); break; }
+    }
+    return n;
+  }
+
+  // ── 9) 跑 ──
+  REAL_FETCH('/ike.json').then(function (r) { return r.json(); }).then(function (cfg) {
+    hook();
+
+    for (gameIdx = 0; gameIdx < GAMES; gameIdx++) {
+      RNG = mk(SEED + gameIdx * 7919);        // 每局独立种子（与 engine_golden 相同）
+      TIMERS.length = 0;
+      FETCHED.length = 0;
+      CAP = null;
+      LAST_DISCARD_RND = [];
+
+      var checker = new WinChecker(null, cfg);
+      (cfg.yaku || []).forEach(function (y) { if (y.optional) checker.optionalEnabled.add(y.id); });
+
+      var g = new TiisuMahjong();
+      g.init(cfg, checker, 'ai-golden-uuid-' + gameIdx, {});
+      g.modeTarget = HANDS;
+      g.setMode ? g.setMode(HANDS) : null;
+      g.executeCommand({ action: 'auto', speed: 0 });
+
+      var rounds = 0;
+      while (TIMERS.length && rounds < 4000) {
+        rounds += drain(4000);
+        if (g.handsPlayed >= HANDS) break;
+      }
+    }
+
+    var kinds = {};
+    DECISIONS.forEach(function (d) { kinds[d.kind] = (kinds[d.kind] || 0) + 1; });
+    document.getElementById('o').textContent =
+      'AIGOLD<' + JSON.stringify({
+        seed: SEED, games: GAMES, hands: HANDS,
+        kinds: kinds,
+        stats: STATS,
+        decisions: DECISIONS
+      }) + '>AIGOLD';
+  }).catch(function (e) {
+    document.getElementById('o').textContent = 'RERR<' + (e && e.message ? e.message : String(e)) + '>RERR';
+  });
+})();
+</script></body></html>

@@ -19,3 +19,5 @@ Thumbs.db
 .DS_Store
 # ── 对外发包 / 临时压缩包（不建议入库）──
 *.zip
+__pycache__/
+*.pyc

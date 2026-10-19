@@ -328,7 +328,7 @@ class TiisuMahjong {
         player._haiDei = (before === 1);   // 最后一张墙牌自摸 → 海底月
         player.firstTurn = false;
         this.currentDrawn = tile;
-        this.recordStep(this.players.indexOf(player), '摸', tileToStr(tile));
+        this.recordStep(this.players.indexOf(player), 'draw', tileToStr(tile));
         return tile;
     }
 
@@ -339,7 +339,7 @@ class TiisuMahjong {
         const pi = this.players.indexOf(player);
         this.roundDiscards.push({ player: pi, tile });
         this.lastDiscarded = tile;
-        this.recordStep(pi, '出', tileToStr(tile));
+        this.recordStep(pi, 'discard', tileToStr(tile));
         // 首巡听牌标志（水滴石破用）：本局第一张打出后，若剩 13 张已听牌 → 标记
         if (player.discards.length === 1) {
             player._firstTurnTenpai = this.isTenpai(player);
@@ -369,7 +369,9 @@ class TiisuMahjong {
             const same = last4.every(e => e.tile && e.tile.id === t0.id);
             const fourPlayers = new Set(last4.map(e => e.player)).size === 4;
             if (isWind && same && fourPlayers) {
-                this.declareSpecialFlow('四风连打（' + tileDisplay(t0) + '）');
+                this.declareSpecialFlow('四风连打（' + tileDisplay(t0) + '）', 'four_wind_repeat', {
+                    t: tileToStr(t0)
+                });
                 return true;
             }
         }
@@ -392,13 +394,14 @@ class TiisuMahjong {
     }
 
     // 特殊流局（四风连打 / 三家和牌 / 九种九牌等）：连庄、本场不变
-    declareSpecialFlow(reason) {
+    declareSpecialFlow(reason, code, detail) {
         this.state = 'ended';
         this.gameOver = true;
         this.revealHands = true;
         gameLog('第' + this.handNumber + '局 特殊流局：' + reason + '（庄家连庄，本场不变）');
         if (this.recordTiles) {
-            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, '特殊流局:' + reason, '');
+            const extra = Object.assign({ reason: code || this._specialFlowCode(reason) }, detail || {});
+            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, 'special_flow', '', extra);
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
         if (typeof showMsg === 'function') showMsg('⏸ 特殊流局 · ' + reason + ' → 庄家连庄（本场不变）', false);
@@ -672,7 +675,7 @@ class TiisuMahjong {
         }
         sortHand(p.hand);
         gameLog(p.name + (type === 'pon' ? ' 碰 ' : type === 'minkan' ? ' 明杠 ' : ' 吃 ') + tileDisplay(tile));
-        this.recordStep(pi, (type === 'pon' ? '碰' : type === 'minkan' ? '明杠' : '吃'), tileToStr(tile));
+        this.recordStep(pi, (type === 'pon' ? 'pon' : type === 'minkan' ? 'kan_minkan' : 'chi'), tileToStr(tile));
 
         // ── 明杠后补摸岭上；岭上池耗尽则回退从活牌墙摸（不得流局）──
         if (type === 'minkan') {
@@ -686,7 +689,9 @@ class TiisuMahjong {
             p.firstTurn = false;
             this.currentDrawn = rep;
             gameLog(p.name + ' 明杠补摸' + (this.rinshan.length === 0 && rep ? '（牌山代摸）' : '岭上') + ' ' + tileDisplay(rep));
-            this.recordStep(pi, '明杠补摸' + (this.rinshan.length === 0 ? '（牌山）' : '岭上'), tileToStr(rep));
+            this.recordStep(pi, 'rinshan_draw', tileToStr(rep), {
+                via: this.rinshan.length === 0 ? 'wall' : 'rinshan'
+            });
         }
 
         this.turnIndex = pi;
@@ -824,7 +829,7 @@ class TiisuMahjong {
         if (robbers.length > 0) {
             gameLog((type === 'ankan' ? '暗杠' : '加杠') + ' ' + tileDisplay(this.tileFromId(id)) +
                 ' 被抢杠：' + robbers.map(r => this.players[r.playerIdx].name).join('、'));
-            if (robbers.length >= 3) { this.declareSpecialFlow('三家和牌（抢杠）→ 自动流局'); return false; }
+            if (robbers.length >= 3) { this.declareSpecialFlow('三家和牌（抢杠）→ 自动流局', 'triple_ron_chankan'); return false; }
             this.declareMultiRon(robbers, this.players.indexOf(p));
             return false;
         }
@@ -851,7 +856,10 @@ class TiisuMahjong {
         this.currentDrawn = tile;
         gameLog(p.name + (type === 'ankan' ? ' 暗杠 ' : ' 加杠 ') + tileDisplay(tile) + ' · ' +
             (this.rinshan.length === 0 ? '牌山代摸' : '岭上摸') + ' ' + tileDisplay(tile));
-        this.recordStep(this.players.indexOf(p), (type === 'ankan' ? '暗杠' : '加杠') + '·岭上摸', tileToStr(tile));
+        this.recordStep(this.players.indexOf(p),
+            type === 'ankan' ? 'kan_ankan' : 'kan_kakan',
+            tileToStr(tile),
+            { via: this.rinshan.length === 0 ? 'wall' : 'rinshan' });
         return true;
     }
 
@@ -1093,7 +1101,7 @@ class TiisuMahjong {
 
     // 推牌流局（4.3）：九种九牌 / 十三不靠 共用。
     // 规则书：符合条件可直接推牌流局，不受摸牌顺序影响，继续连庄不加本场数。
-    declarePushFlow(reason, playerIdx) {
+    declarePushFlow(reason, playerIdx, code) {
         this.state = 'ended';
         this.gameOver = true;
         this.revealHands = true;
@@ -1101,7 +1109,8 @@ class TiisuMahjong {
         gameLog('第' + this.handNumber + '局 ' + reason + '流局（' + (p ? p.name : '') +
             '）→ 庄家连庄，本场不增加');
         if (this.recordTiles) {
-            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, reason + '流局', '');
+            const flowCode = code || this._flowCode(reason);
+            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, 'flow', '', { reason: flowCode });
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
         if (typeof showMsg === 'function') {
@@ -1113,7 +1122,7 @@ class TiisuMahjong {
 
     // 兼容旧调用名
     declareNineOrphans(playerIdx) {
-        this.declarePushFlow('九种九牌', playerIdx);
+        this.declarePushFlow('九种九牌', playerIdx, 'nine_orphans');
     }
 
     declareWin(winIdx, selfDraw, result, discarderIdx) {
@@ -1164,7 +1173,7 @@ class TiisuMahjong {
         // 局末：记录全部 4 家手牌快照
         if (this.recordTiles) {
             for (let pi = 0; pi < 4; pi++) {
-                this.recordStep(pi, winIdx === pi ? (selfDraw ? '自摸和牌' : '荣和和牌') : '旁观', '');
+                this.recordStep(pi, winIdx === pi ? (selfDraw ? 'win_tsumo' : 'win_ron') : 'observe', '');
             }
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
@@ -1202,7 +1211,7 @@ class TiisuMahjong {
         } catch (e) {}
         this.reportStatsRoundOnce();
         if (this.recordTiles) {
-            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, pi === winIdx ? '大七星直接获胜' : '见证', '');
+            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, pi === winIdx ? 'tiisuin_win' : 'witness', '');
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
         this.juFinished = true;
@@ -1304,7 +1313,7 @@ class TiisuMahjong {
         if (!winners || winners.length === 0) return;
         // 三家和牌（4.2）：自动流局（并破坏双和子跳庄规则）
         if (winners.length >= 3) {
-            this.declareSpecialFlow('三家和牌 → 自动流局');
+            this.declareSpecialFlow('三家和牌 → 自动流局', 'triple_ron');
             return;
         }
         this.state = 'ended';
@@ -1368,7 +1377,7 @@ class TiisuMahjong {
         if (this.recordTiles) {
             const winIdxs = new Set(effective.map(w => w.playerIdx));
             for (let pi = 0; pi < 4; pi++) {
-                this.recordStep(pi, winIdxs.has(pi) ? '荣和和牌' : '旁观', '');
+                this.recordStep(pi, winIdxs.has(pi) ? 'win_ron' : 'observe', '');
             }
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
@@ -1557,7 +1566,7 @@ class TiisuMahjong {
         if (penaltyLog.length) gameLog('  罚则: ' + penaltyLog.join(' / '));
         if (weekLog) gameLog('  ' + weekLog);
         if (this.recordTiles) {
-            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, '流局', '');
+            for (let pi = 0; pi < 4; pi++) this.recordStep(pi, 'flow', '', { reason: 'exhaustive' });
             for (let pi = 0; pi < 4; pi++) this.flushRoundLog(pi);
         }
         if (typeof showMsg === 'function') showMsg('⏸ 流局 · 牌山已空 → ' + this.roundLabel() + this.buildFlowOverlay(), false);
@@ -2046,49 +2055,100 @@ class TiisuMahjong {
     }
 
     // ════════ 牌型记录（recordTiles 开启时） ════════
+    // 存储格式：JSONL 事件（纯 ASCII 字段），中文只在 logRender.js 显示层生成。
+    // 事件字段见 src/logRender.js 顶部注释 / NET/src/Tiisu.Api/LOG-FORMAT.md。
 
-    // 追加一条该玩家的本局日志
-    recordStep(playerIdx, action, tileStr) {
+    _logPlayerSlug(playerIdx) {
+        return ['human', 'ai_south', 'ai_west', 'ai_north'][playerIdx] || ('p' + playerIdx);
+    }
+
+    _logMeld(meld) {
+        const tiles = (meld && meld.tiles) || [];
+        return {
+            k: (meld && meld.type) || 'unknown',
+            t: tiles.map(t => t.num).join('') + (tiles.length ? tiles[0].suit : '')
+        };
+    }
+
+    _specialFlowCode(reason) {
+        if (!reason) return 'special';
+        if (reason.indexOf('四风连打') === 0) return 'four_wind_repeat';
+        if (reason.indexOf('三家和牌（抢杠）') === 0) return 'triple_ron_chankan';
+        if (reason.indexOf('三家和牌') === 0) return 'triple_ron';
+        return 'special';
+    }
+
+    _flowCode(reason) {
+        if (reason === '九种九牌') return 'nine_orphans';
+        if (reason === '十三不靠') return 'thirteen_unrelated';
+        return 'special';
+    }
+
+    // 追加一条该玩家的本局日志事件
+    recordStep(playerIdx, action, tileStr, extra) {
         if (!this.recordTiles) return;
         if (!this._logEntries) this._logEntries = {};
         if (!this._logEntries[playerIdx]) this._logEntries[playerIdx] = [];
         const p = this.players[playerIdx];
-        const ctx = '[' + this.roundLabel() + (this.honba ? ' ' + this.honba + '本场' : '') + '] ' +
-            seatLabel(p) + ' ' + action +
-            (tileStr ? ' ' + tileStr : '') +
-            ' | 手牌=' + (handToStr(p.hand) || '∅') +
-            (p.melds.length ? ' 副露=' + meldsToStr(p.melds) : '') +
-            (p.discards.length ? ' 弃牌=' + discardsToStr(p.discards) : '') +
-            ' | 牌山' + this.wall.length + ' 岭上' + this.rinshan.length;
-        this._logEntries[playerIdx].push(ctx);
+        if (!p) return;
+        const ev = { type: 'step', a: action, p: playerIdx };
+        if (tileStr) ev.t = tileStr;
+        ev.hand = handToStr(p.hand) || '';
+        ev.melds = (p.melds || []).map(m => this._logMeld(m));
+        ev.discards = (p.discards || []).map(t => tileToStr(t));
+        ev.wall = this.wall.length;
+        ev.rinshan = this.rinshan.length;
+        // 行首上下文快照：旧日志每行都在当时拼出局名/座次，必须在事件里保留。
+        ev.h = this.honba;
+        ev.rw = this.roundWindIdx;
+        ev.dc = this.dealerCount;
+        ev.x = this._inExtension ? 1 : 0;
+        ev.w = p.seatWind;
+        ev.d = p.isDealer ? 1 : 0;
+        ev.r = p.riichi ? 1 : 0;
+        if (extra) Object.assign(ev, extra);
+        this._logEntries[playerIdx].push(ev);
     }
 
-    // 写入某玩家本局日志（含上下文头），返回格式串
+    // 本局日志头事件（机器可读，无汉字）
     recordRoundHeader(playerIdx) {
         const p = this.players[playerIdx];
-        return '=== ' + this.roundLabel() + (this.honba ? ' ' + this.honba + '本场' : '') +
-            ' · ' + seatLabel(p) + ' · UUID=' + (p.uuid || '') + ' ===';
+        return {
+            type: 'round',
+            round: this.handNumber,
+            honba: this.honba,
+            player: playerIdx,
+            name: this._logPlayerSlug(playerIdx),
+            wind: p.seatWind,
+            dealer: !!p.isDealer,
+            riichi: !!p.riichi,
+            uuid: p.uuid || '',
+            session: (typeof __SESSION__ !== 'undefined' ? __SESSION__ : ''),
+            roundWindIdx: this.roundWindIdx,
+            dealerCount: this.dealerCount,
+            extension: !!this._inExtension
+        };
     }
 
-    // 局末：将该玩家本局记录写入对应会话日志文件夹
+    // 局末：将该玩家本局事件写入对应会话日志文件夹（POST /api/roundlog）
     flushRoundLog(playerIdx) {
         if (!this.recordTiles) return;
         const p = this.players[playerIdx];
         const entries = (this._logEntries && this._logEntries[playerIdx]) || [];
         const header = this.recordRoundHeader(playerIdx);
-        const body = entries.join('\n');
-        const payload = header + '\n' + body;
+        const payload = {
+            session: (typeof __SESSION__ !== 'undefined' ? __SESSION__ : ''),
+            round: this.handNumber,
+            player: playerIdx,
+            playerName: this._logPlayerSlug(playerIdx),
+            playerUUID: p.uuid || '',
+            events: [header].concat(entries)
+        };
         try {
             fetch('/api/roundlog', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    session: (typeof __SESSION__ !== 'undefined' ? __SESSION__ : ''),
-                    round: this.handNumber,
-                    player: p.name,
-                    playerUUID: p.uuid || '',
-                    entry: payload
-                }),
+                body: JSON.stringify(payload),
                 keepalive: true
             }).catch((e) => this._queueRoundlog(payload, e));
         } catch(e) { this._queueRoundlog(payload, e); }

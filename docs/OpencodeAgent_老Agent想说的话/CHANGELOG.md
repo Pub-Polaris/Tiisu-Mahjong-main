@@ -72,8 +72,58 @@
 | 261002-38 | 2026-10-20 | **M2 engine 状态机移植完成（回放式 0 差异）** | 新增 `scripts/engine_golden.html` + `gen_engine_golden.py`（桩 fetch/random/Date/timer，705 事件 5 局）；`NET/src/Tiisu.Engine/` 2722 行 C#；**705 事件逐字段 0 差异**，Engine 15 测试 / Core 10115 条仍全绿 |
 | 261002-39 | 2026-10-20 | **参考分析：明星三缺一 2002（IGS）实现** | 逆向确认：**不是 3D 游戏**；`ace.dll` 是 ACE 网络库（不是主代码，游戏在 igsmj2.exe）；片头是 FLI 272 帧；旋转麻将牌是 17 帧预渲染；牌是整张烘焙图（11 变体/9 级 LOD/镜像）；背景是 16bpp 整屏图。报告入 `docs/knowledge/igs-2002-implementation.md` |
 | 261002-40 | 2026-10-20 | **补正 IGS 分析的一处过强推理** | 「没导入 sin/cos → 不可能 3D」不成立（内联 FSQRT/自建表都不进导入表）；改用正面证据：全 exe x87 指令仅 274 条、trig 仅 5 条且都用于 2D（360 项角度表 + 精灵四角旋转） |
+| 261002-42 | 2026-10-20 | **M2b AI 决策移植完成（4796 条 0 差异）** | 新增 `scripts/ai_golden.html` + `gen_ai_golden.py`（决策语料：状态+随机值→决策，4796 条：discard 958 / kan 959 / meld 945 / ron 958 / tsumo 976）；`NET/src/Tiisu.Engine/AiPlayer.cs` 784 行纯函数；0 差异，Engine 测试 15→18 |
+| 261002-43 | 2026-10-20 | **M3：C# API 替换 server.py + 日志改 JSONL** | `NET/src/Tiisu.Api`（Minimal API，7778）镜像 settings/state/stats/log/chrlog/roundlog/round_end；`server.py` 与 `engine.js` 同步改：日志落 `logs/<session>/round_NNN_p<idx>_<uuid>/events.jsonl`（**零 CJK**），汉字只在 `src/logRender.js` 生成 + `logview.html` 查看；**API 对等 22/22 PASS**，Api 测试 7 条 |
+
 
 版本号规则：`YYMMDD`（例：`260926` = 2026-09-26）。
+---
+
+## 261002-42/43 — M2b AI 决策 + M3 C# API 与日志 JSONL（2026-10-20）
+
+### 261002-42：M2b AI 决策移植（0 差异）
+
+决策语料 `Web/scripts/ai_golden.html` + `gen_ai_golden.py`：记录每个决策点的
+**输入状态 + 消耗的随机值 + 决策结果**（4796 条：discard 958 / kan 959 / meld 945 / ron 958 / tsumo 976），
+同种子重跑 SHA256 一致。C# 侧 `AiPlayer.cs` 784 行纯函数，**0 差异**，Engine 测试 15→18。
+
+旁证：页面统计的实际 `tsumoWins=6 / ronWins=13` 与决策记录命中数完全吻合。
+
+### 261002-43：M3 —— C# API 替换 server.py、日志改 JSONL
+
+**新增 `NET/src/Tiisu.Api/`**（ASP.NET Core Minimal API，端口 7778）：
+镜像 `settings / state / stats / log / chrlog / roundlog / round_end`；`LOG-FORMAT.md` 记录 schema。
+
+**日志格式重构（北极星要求）**：
+
+| 层 | 前 | 后 |
+|---|---|---|
+| 存储 | 一段中文文本 POST 落盘 | **JSONL**，动作码 + 字段全 ASCII（`logs/<session>/round_NNN_p<idx>_<uuid>/events.jsonl`） |
+| 显示 | 直接就是中文 | `src/logRender.js` 渲染成旧格式中文；新增 `logview.html` 查看器 |
+
+动作码：`draw/discard/pon/chi/kan_minkan/kan_ankan/kan_kakan/rinshan_draw/win_tsumo/win_ron/observe/special_flow/flow/tiisuin_win/witness`。
+
+### 验收
+
+| 项 | 结果 |
+|---|---|
+| `dotnet build Tiisu.slnx` | 0 警告 0 错误 |
+| `dotnet test` | **Api 7 / Core 1（10115 条）/ Engine 18（705 事件）** 全绿 |
+| API 对等（Python vs C#，`tools/api_parity.py`） | **22/22 PASS** |
+| JSONL 扫描（`tools/scan_logs.py`） | 4 个文件，**CJK = 0**，非 ASCII = 0 |
+| `python scripts/run_all.py --runs 1` | **ALL CHECKS PASSED**（221/221、73/73、smoke clean） |
+
+### 已知既有问题（记录，未改）
+
+1. `engine.js` 明杠补摸的 `via` 在 `shift()` 之后判断 → 最后一张岭上会被记成 `wall`（旧文本同样误报）；暗杠/加杠无条件显示"岭上摸"。
+2. Python `server.py` 启动时会归档旧会话目录 → 重启后 `logview` 读不到旧 JSONL（C# 启动不归档）。
+3. Python `_handle_stats` 的 `DEFAULT_STATS.copy()` 是**浅拷贝**，`byPlayer` 会被跨请求共享污染；C# 端已用深拷贝，Python 侧未修。
+4. C# 侧仍只做 API / 静态托管，**engine 还在 JS**（C# Engine 尚未接进来）。
+
+### 旧日志处理
+
+北极星决定**不迁移旧日志**，直接删除：已删 `logs/` 下 216 个文件（目录保留为空）。
+
 ---
 
 ## 261002-40 — 补正 IGS 分析的一处过强推理（2026-10-20）

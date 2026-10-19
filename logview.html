@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>牌型日志查看器 · 七子麻将</title>
+<style>
+  :root {
+    --bg: #0f1a0e;
+    --panel: #172516;
+    --line: #38532f;
+    --text: #e7e2c4;
+    --muted: #9fb28c;
+    --accent: #ffd84a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.55 Consolas, "Cascadia Mono", "Microsoft YaHei", monospace;
+  }
+  header {
+    padding: 14px 18px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    align-items: end;
+  }
+  h1 { font-size: 16px; margin: 0 18px 0 0; color: var(--accent); font-weight: 600; }
+  label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 12px; }
+  input {
+    background: #0b140a;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 8px;
+    min-width: 130px;
+    font: inherit;
+  }
+  input[type="number"] { min-width: 80px; }
+  button {
+    background: var(--accent);
+    color: #201d08;
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  main { padding: 14px 18px 40px; }
+  #status { color: var(--muted); margin-bottom: 10px; min-height: 20px; }
+  #status.error { color: #ff8d7a; }
+  pre {
+    margin: 0;
+    padding: 14px;
+    background: #0a1209;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-height: 160px;
+  }
+  .hint { color: var(--muted); font-size: 12px; }
+  .hint code { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>牌型日志查看器</h1>
+  <label>session
+    <input id="session" placeholder="260102_01-02-03" autocomplete="off">
+  </label>
+  <label>player
+    <input id="player" placeholder="0-3 / human / ai_south" autocomplete="off">
+  </label>
+  <label>round
+    <input id="round" type="number" min="0" step="1" placeholder="全部">
+  </label>
+  <button id="load">载入</button>
+  <span class="hint">数据源 <code>/api/roundlog</code>（JSONL，存储层无汉字）</span>
+</header>
+<main>
+  <div id="status">填写条件后点「载入」；也可用 <code>?session=&amp;player=&amp;round=</code> 直接打开。</div>
+  <pre id="out"></pre>
+</main>
+<script src="src/logRender.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  $('session').value = params.get('session') || '';
+  $('player').value = params.get('player') || '';
+  $('round').value = params.get('round') || '';
+
+  function setStatus(text, error) {
+    const el = $('status');
+    el.textContent = text;
+    el.className = error ? 'error' : '';
+  }
+
+  async function load() {
+    const session = $('session').value.trim();
+    const player = $('player').value.trim();
+    const round = $('round').value.trim();
+    const query = new URLSearchParams();
+    if (session) query.set('session', session);
+    if (player) query.set('player', player);
+    if (round) query.set('round', round);
+
+    setStatus('读取中…');
+    $('out').textContent = '';
+    try {
+      const response = await fetch('/api/roundlog' + (query.toString() ? '?' + query : ''));
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const text = await response.text();
+      const events = TiisuLogRender.parseJsonl(text);
+      $('out').textContent = TiisuLogRender.renderEvents(events) || '（没有匹配的日志）';
+      setStatus('共 ' + events.length + ' 条事件 · ' +
+        events.filter(e => e.type === 'round').length + ' 个玩家局日志');
+    } catch (error) {
+      setStatus('读取失败：' + (error && error.message ? error.message : error), true);
+    }
+  }
+
+  $('load').addEventListener('click', load);
+  document.querySelectorAll('input').forEach(input => {
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') load();
+    });
+  });
+  if ($('session').value || $('player').value || $('round').value) load();
+})();
+</script>
+</body>
+</html>
